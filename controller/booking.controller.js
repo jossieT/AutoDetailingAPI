@@ -1,0 +1,65 @@
+const bookingService = require('../services/booking.service');
+const catchAsync = require('../utils/catchAsync');
+
+
+
+// Controller to get available slots for a given date
+const getAvailableSlots = catchAsync(async (req, res) => {
+    const { date } = req.query;
+
+    if (!date) {
+        return res.status(400).json({ error: 'Date is required' });
+    }
+
+    const slots = await bookingService.getAvailableSlots(date);
+
+    res.status(200).json({ availableSlots: slots });
+});
+
+
+// Create a new booking
+const createBooking = catchAsync(async (req, res) => {
+    const booking = await bookingService.createBooking(req.body);
+    res.status(201).json(booking);
+});
+
+// Get all bookings
+const getAllBookings = catchAsync(async (req, res) => {
+    const bookings = await bookingService.getAllBookings();
+    res.status(200).json(bookings);
+});
+
+// Get a booking by ID
+const getBookingById = catchAsync(async (req, res) => {
+    const booking = await bookingService.getBookingById(req.params.bookingId);
+    res.status(200).json(booking);
+});
+
+// Update a booking by ID
+const updateBookingById = catchAsync(async (req, res) => {
+    const updatedBooking = await bookingService.updateBookingById(req.params.bookingId, req.body);
+    res.status(200).json(updatedBooking);
+});
+
+// Delete a booking by ID
+const deleteBookingById = catchAsync(async (req, res) => {
+    await bookingService.deleteBookingById(req.params.bookingId);
+    res.status(204).send();
+});
+
+//assign staff to booking
+const assignUserToBooking = catchAsync(async (req, res) => {
+    const { bookingId, userId } = req.params;
+    const updatedBooking = await bookingService.assignUserToBooking(bookingId, userId);
+    res.status(200).json(updatedBooking);
+});
+
+module.exports = {
+    createBooking,
+    getAllBookings,
+    getBookingById,
+    updateBookingById,
+    deleteBookingById,
+    assignUserToBooking,
+    getAvailableSlots,
+};
