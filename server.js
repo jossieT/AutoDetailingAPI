@@ -25,8 +25,8 @@ const cors = require('cors');
 //const bodyParser = require('body-parser');
 const app = express();
 
-//app.use(morgan.successHandler);
-//app.use(morgan.errorHandler);
+app.use(morgan.successHandler);
+app.use(morgan.errorHandler);
 app.use(express.json());
 
 
