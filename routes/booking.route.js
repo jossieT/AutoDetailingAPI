@@ -3,13 +3,20 @@ const bookingController = require('../controller/booking.controller');
 
 const router = express.Router();
 
+/**
+ * @openapi
+ * tags:
+ *   name: Booking
+ *   description: API for managing Booking in the Auto Detailing system
+ */
+
 /** GET Methods */
 /**
  * @openapi
  * '/api/available-slots':
  *  get:
  *     tags:
- *     - Booking Controller
+ *     - Booking
  *     summary: Get available time slots for a specific date
  *     parameters:
  *      - in: query
@@ -43,7 +50,7 @@ const router = express.Router();
  * '/api/bookings':
  *  get:
  *     tags:
- *     - Booking Controller
+ *     - Booking
  *     summary: Get all bookings
  *     responses:
  *      200:
@@ -64,7 +71,7 @@ const router = express.Router();
  * '/api/bookings':
  *  post:
  *     tags:
- *     - Booking Controller
+ *     - Booking
  *     summary: Create a new booking
  *     requestBody:
  *      required: true
@@ -122,7 +129,7 @@ const router = express.Router();
  * '/api/bookings/{bookingId}':
  *  get:
  *     tags:
- *     - Booking Controller
+ *     - Booking
  *     summary: Get booking details by ID
  *     parameters:
  *      - in: path
@@ -146,7 +153,7 @@ const router = express.Router();
  * '/api/bookings/{bookingId}':
  *  patch:
  *     tags:
- *     - Booking Controller
+ *     - Booking
  *     summary: Update booking details
  *     parameters:
  *      - in: path
@@ -177,7 +184,7 @@ const router = express.Router();
  * '/api/bookings/{bookingId}':
  *  delete:
  *     tags:
- *     - Booking Controller
+ *     - Booking
  *     summary: Delete a booking
  *     parameters:
  *      - in: path
@@ -201,7 +208,7 @@ const router = express.Router();
  * '/api/bookings/{bookingId}/assign/{userId}':
  *  patch:
  *     tags:
- *     - Booking Controller
+ *     - Booking
  *     summary: Assign a staff member to a booking
  *     parameters:
  *      - in: path

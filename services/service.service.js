@@ -37,6 +37,10 @@ const getServiceById = async (serviceId) => {
     return service;
 };
 
+const getServicesByIds = async (serviceIds) => {
+    return await Service.find({ _id: { $in: serviceIds } });
+  };
+
 /**
  * Update a service by ID
  * @param {String} serviceId
@@ -80,6 +84,7 @@ module.exports = {
     createService,
     getServices,
     getServiceById,
+    getServicesByIds,
     updateServiceById,
     deleteServiceById,
 };
