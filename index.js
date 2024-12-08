@@ -13,7 +13,7 @@ mongoose.connect(config.db_connection, {
 }).then(() => {
   logger.info('mongoDB connection successful');
 }).catch((error) => {
-  logger.error('Error occured with erro message: ', error.message);
+  logger.error(`Error occured with erro message: ${error.message}, { stack: error.stack }`);
 });
 
 

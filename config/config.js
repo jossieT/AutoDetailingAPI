@@ -34,4 +34,4 @@ cspOptions: {
     },
     reportOnly: true,
 }
-}
+} 
