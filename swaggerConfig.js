@@ -15,12 +15,12 @@ const options = {
     },
     servers: [
       {
-        url: "http://localhost:5000/",
-        description: "Local server"
+        url: "https://autodetailingapi.onrender.com",
+        description: "Live server"
       },
       {
-        url: "https://autodetailingapi.onrender.com/api-docs/",
-        description: "Live server"
+        url: "http://localhost:5000/",
+        description: "Local server"
       },
     ]
   },
