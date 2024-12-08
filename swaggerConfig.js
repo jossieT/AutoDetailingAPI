@@ -18,10 +18,10 @@ const options = {
         url: "http://localhost:5000/",
         description: "Local server"
       },
-      // {
-      //   url: "",
-      //   description: "Live server"
-      // },
+      {
+        url: "https://autodetailingapi.onrender.com/api-docs/",
+        description: "Live server"
+      },
     ]
   },
   // looks for configuration in specified directories
@@ -40,6 +40,7 @@ const swaggerDocs = (app, port) => {
   });
 
   console.log(`Swagger docs available at http://localhost:${port}/api-docs`);
+  console.log(`Swagger docs available at https://autodetailingapi.onrender.com/api-docs/`);
 };
 
 module.exports = { swaggerDocs };
