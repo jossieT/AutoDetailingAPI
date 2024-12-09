@@ -1,4 +1,5 @@
 const Booking = require('../model/booking.model');
+const DayOff = require('../model/day-off.model');
 const WorkingHours = require('../model/working.hours.model');
 const { ApiError } = require('../utils/ApiError');
 const httpStatus = require('http-status');
@@ -46,8 +47,24 @@ const getAvailableSlots = async (date) => {
 
     const { startTime, endTime, intervalMinutes } = workingHours;
 
+    // console.log('workingHours:', workingHours);
+    // console.log('Type of workingHours:', typeof workingHours);
+
     // Generate all time slots
     const allSlots = generateTimeSlots(startTime, endTime, intervalMinutes);
+
+    // Check if the date is a day off
+    const dayOff = await DayOff.findOne({ date });
+
+    if (dayOff) {
+        if (dayOff.times && dayOff.times.length > 0) {
+            // Exclude specific times from working hours
+            return allSlots.filter(time => !dayOff.times.includes(time));
+        }
+        return [];
+    }
+
+
 
     // Fetch existing bookings for the date
     const bookings = await Booking.find({ appointmentDate: new Date(date) });

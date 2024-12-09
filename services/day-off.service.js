@@ -1,4 +1,4 @@
-const DayOff = require('../models/day-off.model');
+const DayOff = require('../model/day-off.model');
 
 const createDayOff = async (data) => {
     return await DayOff.create(data);
