@@ -34,7 +34,6 @@ const bookingSchema = new mongoose.Schema({
     appointmentDate: { type: Date, required: true },
     serviceStartingTime: { type: String, required: true },
     bookingEndTime : { type: String },
-    timeSlot: { type: String, required: true }, // Example: "10:00-12:00"
     status: { 
         type: String, 
         enum: ['Pending', 'Confirmed', 'Completed', 'Canceled'], 
