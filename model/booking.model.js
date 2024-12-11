@@ -13,7 +13,7 @@ const bookingSchema = new mongoose.Schema({
         model: { type: String }, // Optional: Vehicle model
         year: { type: Number }, // Optional: Vehicle year
     },
-    images: [{ 
+    images: [{
         url: { type: String, required: false }, // URL of uploaded car image
         description: { type: String }          // Optional description
     }],
@@ -25,19 +25,19 @@ const bookingSchema = new mongoose.Schema({
         },
     },
     service_ids: [
-         { 
-        type: mongoose.Schema.Types.ObjectId, 
-        ref: 'Service', 
-        required: true 
-    }
+        {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Service',
+            required: true
+        }
     ],
     appointmentDate: { type: Date, required: true },
     serviceStartingTime: { type: String, required: true },
-    bookingEndTime : { type: String },
-    status: { 
-        type: String, 
-        enum: ['Pending', 'Confirmed', 'Completed', 'Canceled'], 
-        default: 'Pending' 
+    bookingEndTime: { type: String },
+    status: {
+        type: String,
+        enum: ['Pending', 'Confirmed', 'Completed', 'Canceled'],
+        default: 'Pending'
     },
     assignedTo: {
         type: mongoose.Schema.Types.ObjectId,
@@ -57,17 +57,17 @@ bookingSchema.pre('save', async function (next) {
     if (this.service_ids && this.isModified('service_ids')) {
         // Populate service_ids to fetch service details
         await this.populate('service_ids', 'basePrice duration');
-        
+
         // Calculate total price
         this.totalPrice = this.service_ids.reduce((total, service) => {
             console.log(total + service.basePrice);
-            
+
             return total + service.basePrice;
         }, 0);
 
         // Calculate total duration
         const totalDuration = this.service_ids.reduce((total, service) => {
-            console.log(service);     
+            console.log(service);
             return total + service.duration; // Assuming `duration` is in minutes
         }, 0);
 
@@ -81,13 +81,13 @@ bookingSchema.pre('save', async function (next) {
         const endHours = endTime.getHours().toString().padStart(2, '0');
         const endMinutes = endTime.getMinutes().toString().padStart(2, '0');
         console.log(`${endHours}:${endMinutes}`);
-        
+
         this.bookingEndTime = `${endHours}:${endMinutes}`;
     }
     next();
 });
 // Update the updatedAt field automatically before saving
-bookingSchema.pre('save', function(next) {
+bookingSchema.pre('save', function (next) {
     this.updatedAt = Date.now();
     next();
 });

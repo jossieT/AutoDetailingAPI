@@ -12,24 +12,12 @@ const calculateTotalPrice = (services) => {
 // Generate all time slots between startTime and endTime with the given interval
 const generateTimeSlots = (startTime, endTime, intervalMinutes) => {
     const slots = [];
-    const [startHours, startMinutes] = startTime.split(':').map(Number);
-    const [endHours, endMinutes] = endTime.split(':').map(Number);
+    let current = new Date(`1970-01-01T${startTime}:00`);
+    const end = new Date(`1970-01-01T${endTime}:00`);
 
-    let currentHours = startHours;
-    let currentMinutes = startMinutes;
-
-    while (
-        currentHours < endHours || 
-        (currentHours === endHours && currentMinutes < endMinutes)
-    ) {
-        slots.push(
-            `${String(currentHours).padStart(2, '0')}:${String(currentMinutes).padStart(2, '0')}`
-        );
-        currentMinutes += intervalMinutes;
-        if (currentMinutes >= 60) {
-            currentHours += 1;
-            currentMinutes -= 60;
-        }
+    while (current < end) {
+        slots.push(current.toTimeString().slice(0, 5)); // Format as "HH:mm"
+        current = new Date(current.getTime() + intervalMinutes * 60 * 1000);
     }
 
     return slots;
@@ -47,9 +35,6 @@ const getAvailableSlots = async (date) => {
 
     const { startTime, endTime, intervalMinutes } = workingHours;
 
-    // console.log('workingHours:', workingHours);
-    // console.log('Type of workingHours:', typeof workingHours);
-
     // Generate all time slots
     const allSlots = generateTimeSlots(startTime, endTime, intervalMinutes);
 
@@ -58,34 +43,38 @@ const getAvailableSlots = async (date) => {
 
     if (dayOff) {
         if (dayOff.times && dayOff.times.length > 0) {
-            // Exclude specific times from working hours
-            return allSlots.filter(time => !dayOff.times.includes(time));
+            // Exclude specific times for partial day off
+            return allSlots.filter((time) => !dayOff.times.includes(time));
         }
-        return [];
+        return []; // Entire day is off
     }
 
+    // Fetch existing bookings for the date, sorted by start time
+    const bookings = await Booking.find({ appointmentDate: new Date(date) }).sort({
+        serviceStartingTime: 1,
+    });
 
+    // Create a set of unavailable slots based on bookings
+    const unavailableSlots = new Set();
 
-    // Fetch existing bookings for the date
-    const bookings = await Booking.find({ appointmentDate: new Date(date) });
+    bookings.forEach((booking) => {
+        const bookingStart = new Date(`1970-01-01T${booking.serviceStartingTime}:00`);
+        const bookingEnd = new Date(`1970-01-01T${booking.bookingEndTime}:00`);
+        bookingEnd.setHours(bookingEnd.getHours() + 1); // Add 1-hour buffer
 
-    // Extract booked slots
-    const bookedSlots = bookings.map((booking) => booking.serviceStartingTime);
+        // Add all time slots within the unavailable range to the set
+        for (let time = new Date(bookingStart); time < bookingEnd; time.setMinutes(time.getMinutes() + intervalMinutes)) {
+            unavailableSlots.add(time.toTimeString().slice(0, 5)); // Format as "HH:mm"
+        }
+    });
 
-    // Filter out booked slots
-    const availableSlots = allSlots.filter((slot) => !bookedSlots.includes(slot));
+    // Filter out unavailable slots from allSlots
+    const availableSlots = allSlots.filter((slot) => !unavailableSlots.has(slot));
 
     return availableSlots;
 };
 
 
-
-
-
-// Create a new booking
-// const createBooking = async (bookingData) => {
-//     return await Booking.create(bookingData);
-// };
 
 // Create a new booking
 const createBooking = async (bookingData) => {
