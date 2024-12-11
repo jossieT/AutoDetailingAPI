@@ -38,6 +38,12 @@ const userSchema = mongoose.Schema({
         enum: ['admin', 'staff'], 
         default: 'staff' 
     },
+    assignedBookings: [
+        {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'Booking', // Reference to the Booking model
+        },
+      ],
     phone: { type: String },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },

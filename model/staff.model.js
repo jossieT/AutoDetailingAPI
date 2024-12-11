@@ -8,8 +8,11 @@ const staffSchema = new mongoose.Schema({
         type: Boolean, 
         default: true 
     }, // Indicates if the staff member is available
-    assigned_reservations: [
-        { type: mongoose.Schema.Types.ObjectId, ref: 'Booking' }
+    assignedBookings: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'booking.model', // Reference to the Booking model
+      },
     ],
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },

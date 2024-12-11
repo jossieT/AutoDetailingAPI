@@ -5,6 +5,7 @@ const serviceSchema = new mongoose.Schema({
     description: { type: String, required: true },
     basePrice: { type: Number, required: true },
     duration: { type: Number, required: true }, // Example: 2
+    image: { type: String },
     customizableOptions: [
         {
         optionName: { type: String, required: true }, // e.g., "Extra Wax Coating"
