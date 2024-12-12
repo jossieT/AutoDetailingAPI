@@ -6,8 +6,12 @@ const verifyCallBack = (req, resolve, reject) => async (err, user, info) => {
     if (err || info || !user) {
         return reject(new ApiError(httpStatus.UNAUTHORIZED, 'please authenticate'));
     }
+    const getuser = await user;
+    //console.log("trying to login: ", getuser.role);
+    if (await getuser.role !== 'admin') {
+        return reject(new ApiError(httpStatus.FORBIDDEN, 'Access denied: Admins only'));
+    }
 
-    //console.log("trying to login: ", req.user);
     req.user = user;
     resolve();
 };
@@ -21,4 +25,14 @@ const auth = async (req, res, next) => {
         .catch((error) => next(error));
 }
 
-module.exports = auth;
+/**
+ * Admin Authentication Middleware
+ */
+// const authenticateAdmin = (req, res, next) => {
+//     if (req.user.role !== 'admin') {
+//         return res.status(403).json({ error: 'Access denied' });
+//     }
+//     next();
+// };
+
+module.exports = { auth };

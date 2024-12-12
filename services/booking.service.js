@@ -1,4 +1,5 @@
 const Booking = require('../model/booking.model');
+const User = require('../model/user.model');
 const DayOff = require('../model/day-off.model');
 const WorkingHours = require('../model/working.hours.model');
 const { ApiError } = require('../utils/ApiError');
@@ -133,6 +134,15 @@ const getAvailableSlots = async (date) => {
 const createBooking = async (bookingData) => {
     const { appointmentDate, serviceStartingTime } = bookingData;
 
+    // Find the default staff
+    const defaultStaff = await User.findOne({ role: 'staff' });
+    // Assign the staff to the booking
+    bookingData.assignedStaff = defaultStaff._id;
+
+    if (!defaultStaff) {
+        throw new Error('No staff available for assignment');
+    }
+
     // Check if the time slot is already booked
     const existingBooking = await Booking.findOne({
         appointmentDate: new Date(appointmentDate),
@@ -150,8 +160,14 @@ const createBooking = async (bookingData) => {
         throw new Error('The requested time slot is unavailable.');
     }
 
+
     // Create the booking
     const newBooking = await Booking.create(bookingData);
+    await newBooking.save();
+     // Add the booking ID to the staff's assignedBookings array
+     defaultStaff.assignedBookings.push(newBooking._id);
+     await defaultStaff.save();
+     
     return newBooking;
 };
 

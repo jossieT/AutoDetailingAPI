@@ -4,6 +4,11 @@ const http = require('http');
 //const bodyParser = require('body-parser');
 const app = require('./server');
 const logger = require('./config/logger');
+const dotenv = require('dotenv');
+
+const createInitialAdmin = require('./adminInit');
+
+dotenv.config();
 //const { swaggerDocs } = require('./swagger');
 
 const httpServer = http.createServer(app);
@@ -12,6 +17,7 @@ mongoose.connect(config.db_connection, {
   useNewUrlParser: true,
 }).then(() => {
   logger.info('mongoDB connection successful');
+  createInitialAdmin();
 }).catch((error) => {
   logger.error(`Error occured with erro message: ${error.message}, { stack: error.stack }`);
 });

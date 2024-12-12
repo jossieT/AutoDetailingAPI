@@ -1,5 +1,6 @@
 const bookingService = require('../services/booking.service');
 const catchAsync = require('../utils/catchAsync');
+const User = require('../model/user.model');
 
 
 
@@ -19,7 +20,15 @@ const getAvailableSlots = catchAsync(async (req, res) => {
 
 // Create a new booking
 const createBooking = catchAsync(async (req, res) => {
+    
+    const staff = await User.findOne({ role: 'staff' });
+
+    if (!staff) {
+      return res.status(404).json({ error: 'No staff member found to assign the booking' });
+    }
+
     const booking = await bookingService.createBooking(req.body);
+    booking.assignedTo = staff._id;
     res.status(201).json(booking);
 });
 
