@@ -42,7 +42,7 @@ const getStaffBookings = async (staffId) => {
   const staff = await User.findById(staffId);
   if (!staff || staff.role !== 'staff') throw new Error('Staff not found');
 
-  const bookings = await Booking.find({ assignedStaff: staffId });
+  const bookings = await Booking.find({ assignedTo: staffId });
   return bookings;
 };
 
