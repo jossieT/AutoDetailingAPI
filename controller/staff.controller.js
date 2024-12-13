@@ -44,6 +44,9 @@ const deleteStaff = async (req, res) => {
 const getStaffBookings = async (req, res) => {
   try {
     const bookings = await staffService.getStaffBookings(req.params.staffId);
+    
+    console.log(bookings);
+    
     res.status(200).json({ message: 'Bookings retrieved successfully', bookings });
   } catch (error) {
     res.status(400).json({ error: error.message });

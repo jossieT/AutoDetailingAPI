@@ -163,24 +163,24 @@ const createBooking = async (bookingData) => {
 
     // Create the booking
     const newBooking = await Booking.create(bookingData);
-    await newBooking.save();
-     // Add the booking ID to the staff's assignedBookings array
-     defaultStaff.assignedBookings.push(newBooking._id);
-     await defaultStaff.save();
-     
+    // await newBooking.save();
+    // Add the booking ID to the staff's assignedBookings array
+    defaultStaff.assignedBookings.push(newBooking._id);
+    await defaultStaff.save();
+
     return newBooking;
 };
 
 // Get all bookings
 const getAllBookings = async () => {
-        const booking = await Booking.find({})
+    const booking = await Booking.find({})
         .populate('service_ids', 'name description basePrice') // Populate service details
-        .populate('assignedTo', 'firstName lastName email')
+        .populate('assignedTo', 'name email phone -_id')
         .exec();
 
-        if (!booking) {
-            throw new ApiError(httpStatus.NOT_FOUND, 'Booking not found');
-        }
+    if (!booking) {
+        throw new ApiError(httpStatus.NOT_FOUND, 'Booking not found');
+    }
 
     return booking;
 };
@@ -189,16 +189,16 @@ const getAllBookings = async () => {
 const getBookingById = async (bookingId) => {
     const booking = await Booking.findById(bookingId)
         .populate('service_ids', 'name description basePrice') // Populate service details
-        .populate('assignedTo', 'firstName lastName email') 
+        .populate('assignedTo', 'firstName lastName email')
         .exec();
     if (!booking) {
         throw new ApiError(httpStatus.NOT_FOUND, 'Booking not found');
     }
-    
-    
+
+
     const services = booking.service_ids; // Assuming service_ids are populated
     const totalPrice = calculateTotalPrice(services);
-    
+
     console.log(totalPrice); // Log the total price
     booking.totalPrice = totalPrice; // Update the booking's total price
     return booking;

@@ -11,7 +11,7 @@ const staffSchema = new mongoose.Schema({
     assignedBookings: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'booking.model', // Reference to the Booking model
+        ref: 'Booking', // Reference to the Booking model
       },
     ],
     createdAt: { type: Date, default: Date.now },

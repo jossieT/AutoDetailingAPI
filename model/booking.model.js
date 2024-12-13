@@ -92,6 +92,15 @@ bookingSchema.pre('save', function (next) {
     next();
 });
 
+bookingSchema.pre('save', async function (next) {
+    if (!this.assignedTo) { 
+        const staff = await mongoose.model('User').findOne({ role: 'staff' }); // Find the single staff user
+        if (staff) {
+            this.assignedTo = staff._id; // Assign staff ID to assignedTo
+        }
+    }
+    next();
+});
 
 const Booking = mongoose.model('Booking', bookingSchema);
 
