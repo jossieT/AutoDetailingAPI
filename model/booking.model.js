@@ -31,6 +31,12 @@ const bookingSchema = new mongoose.Schema({
             required: true
         }
     ],
+    selectedAddOns: [
+        {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'AddOnService', // Reference to selected add-ons
+        },
+    ],
     appointmentDate: { type: Date, required: true },
     serviceStartingTime: { type: String, required: true },
     bookingEndTime: { type: String },

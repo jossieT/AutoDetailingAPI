@@ -4,14 +4,14 @@ const serviceSchema = new mongoose.Schema({
     name: { type: String, required: true },
     description: { type: String, required: true },
     basePrice: { type: Number, required: true },
+    maxPrice: { type: Number, required: true },
     duration: { type: Number, required: true }, // Example: 2
     image: { type: String },
-    customizableOptions: [
+    additionalServices: [
         {
-        optionName: { type: String, required: true }, // e.g., "Extra Wax Coating"
-        additionalPrice: { type: Number, default: 0 }, // Additional price for this customization
-        description: { type: String }, // Description of the customization
-    },
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'AddOnService', // Reference to AddOnService schema
+        },
     ],
     available: { type: Boolean, default: true },
     createdAt: { type: Date, default: Date.now },

@@ -8,6 +8,7 @@ const companyOverviewRouter = require('./routes/company.overview.route')
 const teamMemberRouter = require('./routes/team.member.route');
 const dayOffRouter = require('./routes/day-off.route');
 const staffRouter = require('./routes/staff.route');
+const addOnRoutes = require('./routes/addon.service.route');
 
 const { errorHandler, errorConverter } = require('./middlewares/error');
 const { ApiError } = require('./utils/ApiError');
@@ -58,6 +59,7 @@ app.use(companyOverviewRouter);
 app.use(teamMemberRouter);
 app.use(dayOffRouter);
 app.use(staffRouter);
+app.use(addOnRoutes);
 
 app.use((req, res, next) => {
   next(new ApiError(httpStatus.NOT_FOUND, 'Not Found'));
