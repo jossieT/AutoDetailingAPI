@@ -175,6 +175,7 @@ const createBooking = async (bookingData) => {
 const getAllBookings = async () => {
     const booking = await Booking.find({})
         .populate('service_ids', 'name description basePrice') // Populate service details
+        .populate('selectedAddOns', 'optionName additionalPrice description') // Populate addOns details
         .populate('assignedTo', 'name email phone -_id')
         .exec();
 

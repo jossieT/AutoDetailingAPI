@@ -39,7 +39,7 @@ const getServiceById = async (serviceId) => {
 
 const getServicesByIds = async (serviceIds) => {
     return await Service.find({ _id: { $in: serviceIds } });
-  };
+};
 
 /**
  * Update a service by ID
@@ -71,12 +71,10 @@ const updateServiceById = async (serviceId, updateBody) => {
  * @returns {Promise<Service>}
  */
 const deleteServiceById = async (serviceId) => {
-    const service = await Service.findById(serviceId);
+    const service = await Service.findByIdAndDelete(serviceId);
     if (!service) {
         throw new ApiError(httpStatus.NOT_FOUND, "Service not found");
     }
-
-    await service.remove();
     return service;
 };
 
