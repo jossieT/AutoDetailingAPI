@@ -5,9 +5,9 @@ const { auth } = require('../middlewares/auth');
 const router = express.Router();
 
 // Get all staff
-router.get('/api/staff', auth, staffController.allStaff);
+router.get('/api/staff', staffController.allStaff);
 // Add a new staff member
-router.post('/api/staff', auth, staffController.addStaff);
+router.post('/api/staff', staffController.addStaff);
 
 // Edit staff details
 router.put('/api/staff/:staffId', auth, staffController.editStaff);
