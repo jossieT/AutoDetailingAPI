@@ -4,11 +4,19 @@ const serviceSchema = new mongoose.Schema({
     name: { type: String, required: true },
     description: { type: String, required: true },
     pricing: {
-        SUV: { type: Number, required: true }, // Price for SUV
-        AUTO: { type: Number, required: true } // Price for AUTO
+        SUV: {
+            basePrice: { type: Number, required: true }, // Base price for SUV
+            maxPrice: { type: Number, required: true },  // Max price for SUV
+        },
+        AUTO: {
+            basePrice: { type: Number, required: true }, // Base price for AUTO
+            maxPrice: { type: Number, required: true },  // Max price for AUTO
+        },
     },
-    maxPrice: { type: Number, required: true },
-    duration: { type: Number, required: true }, // Example: 2
+    duration: {
+        SUV: { type: Number, required: true }, // Duration for SUV (in hours)
+        AUTO: { type: Number, required: true }, // Duration for AUTO (in hours)
+    },
     image: { type: String },
     additionalServices: [
         {

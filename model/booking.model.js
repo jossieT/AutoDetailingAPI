@@ -74,7 +74,7 @@ bookingSchema.pre('save', async function (next) {
             if (!priceForCarType) {
                 throw new Error(`Price not defined for car type: ${this.vehicleDetails.carType}`);
             }
-            return total + priceForCarType;
+            return total + priceForCarType.basePrice;
         }, 0);
 
         // Calculate total duration
@@ -104,12 +104,21 @@ bookingSchema.pre('save', async function (next) {
         // Ensure services are populated to access their durations
         await this.populate('service_ids', 'duration');
 
+        if (!this.vehicleDetails || !this.vehicleDetails.carType) {
+            throw new Error('Vehicle type (SUV or AUTO) must be specified to calculate booking duration.');
+        }
+
+        const vehicleType = this.vehicleDetails.carType;
+
         // Parse the serviceStartingTime to Date object
         let bookingStart = parseAMPM(this.serviceStartingTime);
 
         // Calculate total duration by summing up durations of selected services
         const totalDuration = this.service_ids.reduce((total, service) => {
-            return total + service.duration;
+            if (!service.duration || !service.duration[vehicleType]) {
+                throw new Error(`Service ${service.name} does not have a duration defined for ${vehicleType}.`);
+            }
+            return total + service.duration[vehicleType];
         }, 0);
 
         // Calculate booking end time

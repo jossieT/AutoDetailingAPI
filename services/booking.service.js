@@ -5,6 +5,7 @@ const WorkingHours = require('../model/working.hours.model');
 const { ApiError } = require('../utils/ApiError');
 const httpStatus = require('http-status');
 const { parseAMPM, formatAMPM } = require('../helpers/time.formatter');
+const Service = require('../model/service.model');
 
 
 const calculateTotalPrice = (services) => {
@@ -72,7 +73,15 @@ const getAvailableSlots = async (date) => {
 
 // Create a new booking
 const createBooking = async (bookingData) => {
-    const { appointmentDate, serviceStartingTime, bookingEndTime = "11:30 AM" } = bookingData;
+    const { appointmentDate, serviceStartingTime, vehicleDetails, service_ids} = bookingData;
+
+    // Validate required fields
+    if (!vehicleDetails || !vehicleDetails.carType) {
+        throw new Error('Vehicle type (SUV or AUTO) must be specified for booking.');
+    }
+    if (!service_ids || service_ids.length === 0) {
+        throw new Error('At least one service must be selected.');
+    }
 
     const workingHours = await WorkingHours.findOne({ date: new Date(appointmentDate) });
     if (!workingHours) throw new Error('Working hours not initialized for the selected date.');
@@ -84,12 +93,27 @@ const createBooking = async (bookingData) => {
         throw new Error('Selected time slot falls within a partial day-off.');
     }
 
-    // Generate the time range to block (serviceStartingTime to bookingEndTime + 1 hour)
+    // Check slot availability
+    if (!workingHours.availableSlots.includes(serviceStartingTime)) {
+        throw new Error('Selected time slot is not available.');
+    }
+
+    // Calculate bookingEndTime based on selected services and vehicle type
     const bookingStart = parseAMPM(serviceStartingTime);
-    const bookingEnd = parseAMPM(bookingEndTime);
+
+    // Populate service details to calculate the duration
+    const services = await Service.find({ _id: { $in: service_ids } }, 'duration');
+    const totalDuration = services.reduce((total, service) => {
+        if (!service.duration || !service.duration[vehicleDetails.carType]) {
+            throw new Error(`Service ${service.name} does not have a duration for ${vehicleDetails.carType}.`);
+        }
+        return total + service.duration[vehicleDetails.carType];
+    }, 0);
+    // Generate the time range to block (serviceStartingTime to bookingEndTime + 1 hour)
+    const bookingEnd = new Date(bookingStart.getTime() + totalDuration * 60 * 1000);
     const extendedEnd = new Date(bookingEnd.getTime() + 1 * 60 * 60 * 1000);
 
-
+    // Generate time slots to block
     const slotsToBlock = [];
     for (let time = new Date(bookingStart); time <= extendedEnd; time.setMinutes(time.getMinutes() + 30)) {
         slotsToBlock.push(formatAMPM(new Date(time)));

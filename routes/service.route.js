@@ -165,6 +165,7 @@ const router = express.Router();
  *         description: Server error
  */
 
+
 /**
  * @openapi
  * components:
@@ -185,17 +186,32 @@ const router = express.Router();
  *           type: object
  *           properties:
  *             SUV:
+ *               type: object
+ *               properties:
+ *                 basePrice:
+ *                   type: number
+ *                   example: 70.00
+ *                 maxPrice:
+ *                   type: number
+ *                   example: 120.00
+ *             AUTO:
+ *               type: object
+ *               properties:
+ *                 basePrice:
+ *                   type: number
+ *                   example: 50.00
+ *                 maxPrice:
+ *                   type: number
+ *                   example: 100.00
+ *         duration:
+ *           type: object
+ *           properties:
+ *             SUV:
  *               type: number
- *               example: 75.00
+ *               example: 3
  *             AUTO:
  *               type: number
- *               example: 50.00
- *         maxPrice:
- *           type: number
- *           example: 100.00
- *         duration:
- *           type: number
- *           example: 2
+ *               example: 2
  *         image:
  *           type: string
  *           example: "https://example.com/images/car-wash.jpg"
@@ -222,6 +238,7 @@ const router = express.Router();
  *           format: date-time
  *           example: 2024-12-08T10:20:30Z
  */
+
 
 
 
