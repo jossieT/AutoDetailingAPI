@@ -4,11 +4,14 @@ const DayOff = require('../model/day-off.model');
 const WorkingHours = require('../model/working.hours.model');
 const { ApiError } = require('../utils/ApiError');
 const httpStatus = require('http-status');
+const { parseAMPM, formatAMPM } = require('../helpers/time.formatter');
+
 
 const calculateTotalPrice = (services) => {
     // Use reduce to sum up all service base prices
     return services.reduce((total, service) => total + service.basePrice, 0);
 };
+
 
 // Generate all time slots between startTime and endTime with the given interval
 const generateTimeSlots = (startTime, endTime, intervalMinutes) => {
@@ -17,156 +20,118 @@ const generateTimeSlots = (startTime, endTime, intervalMinutes) => {
     const end = new Date(`1970-01-01T${endTime}:00`);
 
     while (current < end) {
-        slots.push(current.toTimeString().slice(0, 5)); // Format as "HH:mm"
-        current = new Date(current.getTime() + intervalMinutes * 60 * 1000);
+        const hours = current.getHours();
+        const minutes = current.getMinutes().toString().padStart(2, '0');
+        const period = hours >= 12 ? 'PM' : 'AM';
+        const formattedHours = hours % 12 || 12;
+        const formattedTime = `${formattedHours}:${minutes} ${period}`;
+        slots.push(formattedTime);
+        current.setMinutes(current.getMinutes() + intervalMinutes);
     }
-
     return slots;
 };
 
-const isSlotAvailable = async (date, serviceStartingTime) => {
-    // Fetch working hours
-    const workingHours = await WorkingHours.findOne();
+const initializeWorkingHours = async (date) => {
+    const existing = await WorkingHours.findOne({ date: new Date(date) });
 
-    if (!workingHours) {
-        throw new Error('Working hours are not configured');
+    if (!existing) {
+        const timeSlots = generateTimeSlots('06:00', '17:00', 30); // Default 30-min intervals
+        const workingHours = new WorkingHours({
+            date: new Date(date),
+            availableSlots: timeSlots,
+            unavailableSlots: [],
+            dayOff: false,
+            partialDayOff: [],
+        });
+        await workingHours.save();
     }
-
-    const { startTime, endTime, intervalMinutes } = workingHours;
-
-    // Generate all time slots
-    const allSlots = generateTimeSlots(startTime, endTime, intervalMinutes);
-
-    // Check if the date is a day off
-    const dayOff = await DayOff.findOne({ date });
-
-    if (dayOff) {
-        if (dayOff.times && dayOff.times.length > 0) {
-            // Exclude specific times from working hours
-            const availableSlots = allSlots.filter(time => !dayOff.times.includes(time));
-            if (!availableSlots.includes(serviceStartingTime)) {
-                return false; // Slot is unavailable due to day-off
-            }
-        } else {
-            return false; // Entire day is unavailable
-        }
-    }
-
-    // Fetch existing bookings for the date
-    const bookings = await Booking.find({ appointmentDate: new Date(date) });
-
-    // Create a set of unavailable slots based on bookings
-    const unavailableSlots = new Set();
-
-    bookings.forEach((booking) => {
-        const bookingStart = new Date(`1970-01-01T${booking.serviceStartingTime}:00`);
-        const bookingEnd = new Date(`1970-01-01T${booking.bookingEndTime}:00`);
-        bookingEnd.setHours(bookingEnd.getHours() + 1); // Add 1-hour buffer
-
-        for (let time = new Date(bookingStart); time < bookingEnd; time.setMinutes(time.getMinutes() + intervalMinutes)) {
-            unavailableSlots.add(time.toTimeString().slice(0, 5)); // Format as "HH:mm"
-        }
-    });
-
-    // Check if the requested time is unavailable
-    if (unavailableSlots.has(serviceStartingTime)) {
-        return false; // Slot is booked or unavailable
-    }
-
-    // Finally, ensure the requested time is within working hours
-    return allSlots.includes(serviceStartingTime);
 };
 
-
-// Fetch available slots for a given date
 const getAvailableSlots = async (date) => {
-    // Fetch working hours
-    const workingHours = await WorkingHours.findOne(); // Assuming static working hours
+    const workingHours = await WorkingHours.findOne({ date: new Date(date) });
 
     if (!workingHours) {
-        throw new Error('Working hours are not configured');
+        await initializeWorkingHours(date);
+        return generateTimeSlots('06:00', '17:00', 30);
     }
 
-    const { startTime, endTime, intervalMinutes } = workingHours;
-
-    // Generate all time slots
-    const allSlots = generateTimeSlots(startTime, endTime, intervalMinutes);
-
-    // Check if the date is a day off
-    const dayOff = await DayOff.findOne({ date });
-
-    if (dayOff) {
-        if (dayOff.times && dayOff.times.length > 0) {
-            // Exclude specific times for partial day off
-            return allSlots.filter((time) => !dayOff.times.includes(time));
-        }
-        return []; // Entire day is off
+    if (workingHours.dayOff) {
+        return []; // Full day off
     }
 
-    // Fetch existing bookings for the date, sorted by start time
-    const bookings = await Booking.find({ appointmentDate: new Date(date) }).sort({
-        serviceStartingTime: 1,
-    });
+    const filteredSlots = workingHours.availableSlots.filter(
+        (slot) =>
+            !workingHours.unavailableSlots.includes(slot) &&
+            !workingHours.partialDayOff.includes(slot)
+    );
 
-    // Create a set of unavailable slots based on bookings
-    const unavailableSlots = new Set();
-
-    bookings.forEach((booking) => {
-        const bookingStart = new Date(`1970-01-01T${booking.serviceStartingTime}:00`);
-        const bookingEnd = new Date(`1970-01-01T${booking.bookingEndTime}:00`);
-        bookingEnd.setHours(bookingEnd.getHours() + 1); // Add 1-hour buffer
-
-        // Add all time slots within the unavailable range to the set
-        for (let time = new Date(bookingStart); time < bookingEnd; time.setMinutes(time.getMinutes() + intervalMinutes)) {
-            unavailableSlots.add(time.toTimeString().slice(0, 5)); // Format as "HH:mm"
-        }
-    });
-
-    // Filter out unavailable slots from allSlots
-    const availableSlots = allSlots.filter((slot) => !unavailableSlots.has(slot));
-
-    return availableSlots;
+    return filteredSlots;
 };
 
 
 
 // Create a new booking
 const createBooking = async (bookingData) => {
-    const { appointmentDate, serviceStartingTime } = bookingData;
+    const { appointmentDate, serviceStartingTime, bookingEndTime = "11:30 AM" } = bookingData;
 
-    // Find the default staff
+    const workingHours = await WorkingHours.findOne({ date: new Date(appointmentDate) });
+    if (!workingHours) throw new Error('Working hours not initialized for the selected date.');
+
+    if (workingHours.dayOff) throw new Error('No bookings allowed on a full day off.');
+
+
+    if (workingHours.partialDayOff.includes(serviceStartingTime)) {
+        throw new Error('Selected time slot falls within a partial day-off.');
+    }
+
+    // Generate the time range to block (serviceStartingTime to bookingEndTime + 1 hour)
+    const bookingStart = parseAMPM(serviceStartingTime);
+    const bookingEnd = parseAMPM(bookingEndTime);
+    const extendedEnd = new Date(bookingEnd.getTime() + 1 * 60 * 60 * 1000);
+
+
+    const slotsToBlock = [];
+    for (let time = new Date(bookingStart); time <= extendedEnd; time.setMinutes(time.getMinutes() + 30)) {
+        slotsToBlock.push(formatAMPM(new Date(time)));
+    }
+
+    // Validate slot availability
+    const isAvailable = slotsToBlock.every(
+        (slot) => workingHours.availableSlots.includes(slot) && !workingHours.unavailableSlots.includes(slot)
+    );
+    if (!isAvailable) throw new Error('One or more requested slots are unavailable.');
+
+
+    if (!workingHours.availableSlots.includes(serviceStartingTime)) {
+        throw new Error('Selected time slot is not available.');
+    }
+    // Find a staff member
     const defaultStaff = await User.findOne({ role: 'staff' });
-    // Assign the staff to the booking
+    if (!defaultStaff) throw new Error('No staff available for assignment');
+
+
+    // Mark the slot as unavailable
+    // Update unavailable and available slots
+    workingHours.unavailableSlots.push(...slotsToBlock);
+    workingHours.unavailableSlots = [...new Set(workingHours.unavailableSlots)]; // Remove duplicates
+
+    workingHours.availableSlots = workingHours.availableSlots.filter(
+        (slot) => !slotsToBlock.includes(slot)
+    );
+    await workingHours.save();
+
+
+    // Assign a staff member to the booking
     bookingData.assignedStaff = defaultStaff._id;
-
-    if (!defaultStaff) {
-        throw new Error('No staff available for assignment');
-    }
-
-    // Check if the time slot is already booked
-    const existingBooking = await Booking.findOne({
-        appointmentDate: new Date(appointmentDate),
-        serviceStartingTime,
-    });
-
-    if (existingBooking) {
-        throw new Error('Time slot is already booked.');
-    }
-
-    // Validate if the slot is available
-    const isAvailable = await isSlotAvailable(appointmentDate, serviceStartingTime);
-
-    if (!isAvailable) {
-        throw new Error('The requested time slot is unavailable.');
-    }
-
 
     // Create the booking
     const newBooking = await Booking.create(bookingData);
-    // await newBooking.save();
-    // Add the booking ID to the staff's assignedBookings array
+
+    // Update the staff's assigned bookings
     defaultStaff.assignedBookings.push(newBooking._id);
     await defaultStaff.save();
+
+
 
     return newBooking;
 };

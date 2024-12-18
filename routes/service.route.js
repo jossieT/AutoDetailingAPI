@@ -178,12 +178,41 @@ const router = express.Router();
  *         name:
  *           type: string
  *           example: Car Wash
- *         price:
- *           type: number
- *           example: 50.00
  *         description:
  *           type: string
  *           example: Comprehensive exterior and interior car wash.
+ *         pricing:
+ *           type: object
+ *           properties:
+ *             SUV:
+ *               type: number
+ *               example: 75.00
+ *             AUTO:
+ *               type: number
+ *               example: 50.00
+ *         maxPrice:
+ *           type: number
+ *           example: 100.00
+ *         duration:
+ *           type: number
+ *           example: 2
+ *         image:
+ *           type: string
+ *           example: "https://example.com/images/car-wash.jpg"
+ *         additionalServices:
+ *           type: array
+ *           items:
+ *             type: string
+ *             example: 63e2e8a6c92f8a5a4b3d2e17
+ *         features:
+ *           type: array
+ *           items:
+ *             type: string
+ *             example: "Includes vacuuming"
+ *         available:
+ *           type: boolean
+ *           default: true
+ *           example: true
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -193,6 +222,7 @@ const router = express.Router();
  *           format: date-time
  *           example: 2024-12-08T10:20:30Z
  */
+
 
 
 // Create a new service

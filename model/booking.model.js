@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { parseAMPM, formatAMPM } = require('../helpers/time.formatter');
 
 const bookingSchema = new mongoose.Schema({
     clientDetails: {
@@ -8,7 +9,7 @@ const bookingSchema = new mongoose.Schema({
         email: { type: String, required: true },
     },
     vehicleDetails: {
-        type: { type: String, required: true }, // e.g., "Sedan", "SUV", etc.
+        carType: { type: String, enum: ['SUV', 'AUTO'], required: true }, // e.g., "Sedan", "SUV", etc.
         make: { type: String }, // Optional: Vehicle make
         model: { type: String }, // Optional: Vehicle model
         year: { type: Number }, // Optional: Vehicle year
@@ -62,34 +63,62 @@ const bookingSchema = new mongoose.Schema({
 bookingSchema.pre('save', async function (next) {
     if (this.service_ids && this.isModified('service_ids')) {
         // Populate service_ids to fetch service details
-        await this.populate('service_ids', 'basePrice duration');
+        await this.populate('service_ids', 'pricing duration');
 
+        if (!this.vehicleDetails.carType) {
+            throw new Error('Car type is required to calculate total price');
+        }
         // Calculate total price
         this.totalPrice = this.service_ids.reduce((total, service) => {
-            console.log(total + service.basePrice);
-
-            return total + service.basePrice;
+            const priceForCarType = service.pricing[this.vehicleDetails.carType];
+            if (!priceForCarType) {
+                throw new Error(`Price not defined for car type: ${this.vehicleDetails.carType}`);
+            }
+            return total + priceForCarType;
         }, 0);
 
         // Calculate total duration
+        // const totalDuration = this.service_ids.reduce((total, service) => {
+        //     console.log(service);
+        //     return total + service.duration; // Assuming `duration` is in minutes
+        // }, 0);
+
+        // Calculate booking end time
+        // const [startHours, startMinutes] = this.serviceStartingTime.split(':').map(Number);
+        // const endTime = new Date();
+        // endTime.setHours(startHours);
+        // endTime.setMinutes(startMinutes + totalDuration);
+
+        // // Format the booking end time as HH:mm
+        // const endHours = endTime.getHours().toString().padStart(2, '0');
+        // const endMinutes = endTime.getMinutes().toString().padStart(2, '0');
+        // console.log(`${endHours}:${endMinutes}`);
+
+        // this.bookingEndTime = `${endHours}:${endMinutes}`;
+    }
+    next();
+});
+
+bookingSchema.pre('save', async function (next) {
+    if (this.serviceStartingTime && this.service_ids && this.isModified('serviceStartingTime')) {
+        // Ensure services are populated to access their durations
+        await this.populate('service_ids', 'duration');
+
+        // Parse the serviceStartingTime to Date object
+        let bookingStart = parseAMPM(this.serviceStartingTime);
+
+        // Calculate total duration by summing up durations of selected services
         const totalDuration = this.service_ids.reduce((total, service) => {
-            console.log(service);
-            return total + service.duration; // Assuming `duration` is in minutes
+            return total + service.duration;
         }, 0);
 
         // Calculate booking end time
-        const [startHours, startMinutes] = this.serviceStartingTime.split(':').map(Number);
-        const endTime = new Date();
-        endTime.setHours(startHours);
-        endTime.setMinutes(startMinutes + totalDuration);
+        const bookingEnd = new Date(bookingStart.getTime() + totalDuration * 60 * 1000);
 
-        // Format the booking end time as HH:mm
-        const endHours = endTime.getHours().toString().padStart(2, '0');
-        const endMinutes = endTime.getMinutes().toString().padStart(2, '0');
-        console.log(`${endHours}:${endMinutes}`);
-
-        this.bookingEndTime = `${endHours}:${endMinutes}`;
+        // Store bookingEndTime in AM/PM format
+        this.bookingEndTime = formatAMPM(bookingEnd);
     }
+
     next();
 });
 // Update the updatedAt field automatically before saving
