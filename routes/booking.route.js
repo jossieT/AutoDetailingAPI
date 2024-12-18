@@ -232,6 +232,117 @@ const router = express.Router();
  *        description: Server Error
  */
 
+/**
+ * @openapi
+ * components:
+ *   schemas:
+ *     Booking:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           example: 64e2e8a6c92f8a5a4b3d2e17
+ *         clientDetails:
+ *           type: object
+ *           properties:
+ *             firstName:
+ *               type: string
+ *               example: John
+ *             lastName:
+ *               type: string
+ *               example: Doe
+ *             phone:
+ *               type: string
+ *               example: "+1234567890"
+ *             email:
+ *               type: string
+ *               example: "johndoe@example.com"
+ *         vehicleDetails:
+ *           type: object
+ *           properties:
+ *             carType:
+ *               type: string
+ *               enum: ['SUV', 'AUTO']
+ *               example: SUV
+ *             make:
+ *               type: string
+ *               example: Toyota
+ *             model:
+ *               type: string
+ *               example: RAV4
+ *             year:
+ *               type: number
+ *               example: 2022
+ *         images:
+ *           type: array
+ *           items:
+ *             type: object
+ *             properties:
+ *               url:
+ *                 type: string
+ *                 example: "https://example.com/images/car.jpg"
+ *               description:
+ *                 type: string
+ *                 example: "Front view of the car"
+ *         location:
+ *           type: object
+ *           properties:
+ *             address:
+ *               type: string
+ *               example: "123 Main St, Springfield"
+ *             coordinates:
+ *               type: object
+ *               properties:
+ *                 latitude:
+ *                   type: number
+ *                   example: 37.7749
+ *                 longitude:
+ *                   type: number
+ *                   example: -122.4194
+ *         service_ids:
+ *           type: array
+ *           items:
+ *             type: string
+ *             example: 64e2e8a6c92f8a5a4b3d2e17
+ *         selectedAddOns:
+ *           type: array
+ *           items:
+ *             type: string
+ *             example: 64e2e8a6c92f8a5a4b3d2f98
+ *         appointmentDate:
+ *           type: string
+ *           format: date
+ *           example: "2024-12-18"
+ *         serviceStartingTime:
+ *           type: string
+ *           example: "10:30 AM"
+ *         bookingEndTime:
+ *           type: string
+ *           example: "01:00 PM"
+ *         status:
+ *           type: string
+ *           enum: ['Pending', 'Confirmed', 'Completed', 'Canceled']
+ *           default: Pending
+ *           example: Confirmed
+ *         assignedTo:
+ *           type: string
+ *           example: "64e2e8a6c92f8a5a4b3d2a55"
+ *         appointmentNote:
+ *           type: string
+ *           example: "Client prefers early morning service."
+ *         totalPrice:
+ *           type: number
+ *           example: 150.00
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *           example: "2024-12-18T10:15:30Z"
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ *           example: "2024-12-18T11:20:30Z"
+ */
+
 
 // Route to get available slots
 router.get('/api/available-slots', bookingController.getAvailableSlots);
