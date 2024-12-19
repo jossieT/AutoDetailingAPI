@@ -6,6 +6,14 @@ const httpStatus = require('http-status');
  * Create a new service
  */
 const createService = catchAsync(async (req, res) => {
+
+    // Check if an image file is uploaded
+    let image = null;
+    if (req.file) {
+        image = req.file.path; // Cloudinary URL is in `file.path`
+    }
+    req.body.image = image;
+
     const service = await serviceService.createService(req.body);
     res.status(httpStatus.CREATED).send(service);
 });

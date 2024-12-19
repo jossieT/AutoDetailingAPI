@@ -1,5 +1,6 @@
 const express = require('express');
 const serviceController = require('../controller/service.controller');
+const upload = require('../middlewares/multer');
 
 const router = express.Router();
 
@@ -243,7 +244,7 @@ const router = express.Router();
 
 
 // Create a new service
-router.post('/api/service', serviceController.createService);
+router.post('/api/service', upload.single('image'), serviceController.createService);
 
 // Get all services
 router.get('/api/service', serviceController.getServices);
