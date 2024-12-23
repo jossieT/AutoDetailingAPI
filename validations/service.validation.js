@@ -61,7 +61,7 @@ const getServiceSchema = {
 
 const deleteServiceSchema = {
     params: joi.object().keys({
-        id: joi.string(), // Assuming id is a service ID
+        id: joi.string().required(), // Assuming id is a service ID
     }),
 };
 

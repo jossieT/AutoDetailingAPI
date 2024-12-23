@@ -14,7 +14,7 @@ const validate = (schema) => (req, res, next) => {
         }
         return acc;
     }, {});
-    const { value, error } = joi.compile(validSchema).validate(object);
+    const { value, error } = joi.compile(validSchema).validate(object, { abortEarly: false });
     if (error) {
         const errors = error.details.map((detail) => detail.message).join(',');
         next(new ApiError(400, errors));
