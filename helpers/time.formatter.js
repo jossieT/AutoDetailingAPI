@@ -20,22 +20,6 @@ const formatAMPM = (date) => {
     return `${hours}:${minutes} ${period}`;
 };
 
-
-console.log(parseAMPM("12:00 AM")); // Should output: 1970-01-01T00:00:00
-console.log(parseAMPM("12:00 PM")); // Should output: 1970-01-01T12:00:00
-console.log(parseAMPM("01:00 PM")); // Should output: 1970-01-01T13:00:00
-console.log(parseAMPM("01:00 AM")); // Should output: 1970-01-01T01:00:00
-console.log(parseAMPM("11:59 PM")); // Should output: 1970-01-01T23:59:00
-console.log(parseAMPM("11:59 AM")); // Should output: 1970-01-01T11:59:00
-
-console.log(formatAMPM(new Date('1970-01-01T00:00:00'))); // Should output: "12:00 AM"
-console.log(formatAMPM(new Date('1970-01-01T12:00:00'))); // Should output: "12:00 PM"
-console.log(formatAMPM(new Date('1970-01-01T13:00:00'))); // Should output: "1:00 PM"
-console.log(formatAMPM(new Date('1970-01-01T01:00:00'))); // Should output: "1:00 AM"
-console.log(formatAMPM(new Date('1970-01-01T11:59:00'))); // Should output: "11:59 AM"
-console.log(formatAMPM(new Date('1970-01-01T23:59:00'))); // Should output: "11:59 PM"
-
-
 module.exports = {
     parseAMPM,
     formatAMPM

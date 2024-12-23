@@ -9,7 +9,7 @@ const bookingSchema = new mongoose.Schema({
         email: { type: String, required: true },
     },
     vehicleDetails: {
-        carType: { type: String, enum: ['SUV', 'AUTO'], required: true }, // e.g., "Sedan", "SUV", etc.
+        carType: { type: String, enum: ['SUV', 'AUTO'], default: 'SUV', required: true, trim: true }, // e.g., "Sedan", "SUV", etc.
         make: { type: String }, // Optional: Vehicle make
         model: { type: String }, // Optional: Vehicle model
         year: { type: Number }, // Optional: Vehicle year
@@ -76,33 +76,31 @@ bookingSchema.pre('save', async function (next) {
             }
             return total + priceForCarType.basePrice;
         }, 0);
+        
+    }
 
-        // Calculate total duration
-        // const totalDuration = this.service_ids.reduce((total, service) => {
-        //     console.log(service);
-        //     return total + service.duration; // Assuming `duration` is in minutes
-        // }, 0);
+    // Check and calculate total for add-ons
+    if (this.selectedAddOns && this.isModified('selectedAddOns')) {
+        // Populate selectedAddOns to fetch add-on details
+        await this.populate('selectedAddOns', 'additionalPrice');
 
-        // Calculate booking end time
-        // const [startHours, startMinutes] = this.serviceStartingTime.split(':').map(Number);
-        // const endTime = new Date();
-        // endTime.setHours(startHours);
-        // endTime.setMinutes(startMinutes + totalDuration);
+        // Calculate total price for add-ons
+        const addOnPrice = this.selectedAddOns.reduce((total, addOn) => {
+            const priceForCar = addOn.additionalPrice;
+            return total + priceForCar.minBasePrice; // or minBasePrice based on requirement
+        }, 0);
 
-        // // Format the booking end time as HH:mm
-        // const endHours = endTime.getHours().toString().padStart(2, '0');
-        // const endMinutes = endTime.getMinutes().toString().padStart(2, '0');
-        // console.log(`${endHours}:${endMinutes}`);
-
-        // this.bookingEndTime = `${endHours}:${endMinutes}`;
+        // Add add-on price to the total price
+        this.totalPrice += addOnPrice;
     }
     next();
 });
 
 bookingSchema.pre('save', async function (next) {
-    if (this.serviceStartingTime && this.service_ids && this.isModified('serviceStartingTime')) {
-        // Ensure services are populated to access their durations
+    if (this.serviceStartingTime && (this.service_ids || this.selectedAddOns) && this.isModified('serviceStartingTime')) {
+        // Ensure services and selectedAddOns are populated to access their durations
         await this.populate('service_ids', 'duration');
+        await this.populate('selectedAddOns', 'duration');
 
         if (!this.vehicleDetails || !this.vehicleDetails.carType) {
             throw new Error('Vehicle type (SUV or AUTO) must be specified to calculate booking duration.');
@@ -114,15 +112,32 @@ bookingSchema.pre('save', async function (next) {
         let bookingStart = parseAMPM(this.serviceStartingTime);
 
         // Calculate total duration by summing up durations of selected services
-        const totalDuration = this.service_ids.reduce((total, service) => {
+        const serviceDuration  = this.service_ids.reduce((total, service) => {
             if (!service.duration || !service.duration[vehicleType]) {
                 throw new Error(`Service ${service.name} does not have a duration defined for ${vehicleType}.`);
             }
             return total + service.duration[vehicleType];
         }, 0);
 
+         // Calculate total duration for add-ons (if any)
+         const addOnDuration = this.selectedAddOns
+         ? this.selectedAddOns.reduce((total, addOn) => {
+               if (!addOn.duration) {
+                   throw new Error(`Add-on ${addOn.optionName} does not have a duration defined.`);
+               }
+               return total + addOn.duration;
+           }, 0)
+         : 0;
+
+
+            // Combine service and add-on durations
+        const totalDuration = serviceDuration + addOnDuration;
+        
+        // Add one hour (60 minutes) to the total duration
+        const totalDurationWithExtraHour = totalDuration + 60;
+
         // Calculate booking end time
-        const bookingEnd = new Date(bookingStart.getTime() + totalDuration * 60 * 1000);
+        const bookingEnd = new Date(bookingStart.getTime() + totalDurationWithExtraHour * 60 * 1000);
 
         // Store bookingEndTime in AM/PM format
         this.bookingEndTime = formatAMPM(bookingEnd);

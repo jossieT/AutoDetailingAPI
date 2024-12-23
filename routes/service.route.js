@@ -1,6 +1,8 @@
 const express = require('express');
 const serviceController = require('../controller/service.controller');
-const upload = require('../middlewares/multer');
+const { uploadServiceImages } = require('../middlewares/multer');
+const validate = require('../middlewares/validate');
+const serviceValidation = require('../validations/service.validation');
 
 const router = express.Router();
 
@@ -244,18 +246,18 @@ const router = express.Router();
 
 
 // Create a new service
-router.post('/api/service', upload.single('image'), serviceController.createService);
+router.post('/api/service', validate(serviceValidation.createServiceSchema), uploadServiceImages.single('image'), serviceController.createService);
 
 // Get all services
 router.get('/api/service', serviceController.getServices);
 
 // Get a specific service by ID
-router.get('/api/service/:serviceId', serviceController.getServiceById);
+router.get('/api/service/:serviceId', validate(serviceValidation.getServiceSchema), serviceController.getServiceById);
 
 // Update a specific service by ID
-router.patch('/api/service/:serviceId', serviceController.updateServiceById);
+router.patch('/api/service/:serviceId', validate(serviceValidation.updateServiceSchema), uploadServiceImages.single('image'), serviceController.updateServiceById);
 
 // Delete a specific service by ID
-router.delete('/api/service/:serviceId', serviceController.deleteServiceById);
+router.delete('/api/service/:serviceId', validate(serviceValidation.deleteServiceSchema), serviceController.deleteServiceById);
 
 module.exports = router;

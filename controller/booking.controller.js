@@ -1,5 +1,6 @@
 const bookingService = require('../services/booking.service');
 const catchAsync = require('../utils/catchAsync');
+//const cloudinary = require('../config/cloudinary');
 
 // Controller to get available slots for a given date
 const getAvailableSlots = catchAsync(async (req, res) => {
@@ -18,12 +19,17 @@ const getAvailableSlots = catchAsync(async (req, res) => {
 // Create a new booking
 const createBooking = catchAsync(async (req, res) => {
     
-    // const staff = await User.findOne({ role: 'staff' });
+   // Upload images to Cloudinary
+   let imageUrls = [];
+        if (req.files && req.files.length > 0) {
+            imageUrls = req.files.map((file) => file.path);
+        } else {
+            console.warn('No files uploaded!');
+        }
 
-    // if (!staff) {
-    //   return res.status(404).json({ error: 'No staff member found to assign the booking' });
-    // }
-
+    
+     req.body.images = imageUrls;
+     //console.log('Request Body:', req.body);
     const booking = await bookingService.createBooking(req.body);
     //booking.assignedTo = staff._id;
     res.status(201).json(booking);

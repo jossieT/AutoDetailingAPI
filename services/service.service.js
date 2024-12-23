@@ -13,7 +13,6 @@ const createService = async (serviceBody) => {
         throw new ApiError(httpStatus.BAD_REQUEST, "Service name is already taken");
     }
 
-    
 
     return await Service.create(serviceBody);
 };

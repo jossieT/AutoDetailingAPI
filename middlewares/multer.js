@@ -2,14 +2,20 @@ const multer = require('multer');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const cloudinary = require('../config/cloudinary');
 
-const storage = new CloudinaryStorage({
-    cloudinary,
-    params: {
-        folder: 'services', // Folder name in Cloudinary
-        allowed_formats: ['jpg', 'png', 'jpeg'], // Allowed file types
-    },
-});
+// Multer upload handler for dynamic folders
+const getUploadMiddleware = (folderName) => {
+    const storage = new CloudinaryStorage({
+        cloudinary,
+        params: {
+            folder: folderName, // Dynamic folder name
+            allowed_formats: ['jpg', 'png', 'jpeg'], // Allowed file types
+        },
+    });
 
-const upload = multer({ storage });
+    return multer({ storage });
+};
 
-module.exports = upload;
+module.exports = {
+    uploadServiceImages: getUploadMiddleware('services'), // For service images
+    uploadBookingImages: getUploadMiddleware('bookings'), // For booking images
+};

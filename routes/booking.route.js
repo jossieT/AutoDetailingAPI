@@ -1,6 +1,6 @@
 const express = require('express');
 const bookingController = require('../controller/booking.controller');
-
+const { uploadBookingImages } = require('../middlewares/multer');
 const router = express.Router();
 
 /**
@@ -348,7 +348,7 @@ const router = express.Router();
 router.get('/api/available-slots', bookingController.getAvailableSlots);
 
 // Create a new booking
-router.post('/api/bookings', bookingController.createBooking);
+router.post('/api/bookings', uploadBookingImages.array('images', 10), bookingController.createBooking);
 
 // Get all bookings
 router.get('/api/bookings', bookingController.getAllBookings);

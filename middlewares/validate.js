@@ -1,23 +1,27 @@
 const joi = require('joi');
-const { message } = require('../validations/env.validation');
-const { errorHandler } = require('./error');
 const { ApiError } = require('../utils/ApiError');
+
 const validate = (schema) => (req, res, next) => {
-    const keys = Object.keys(schema);
-    const object = keys.reduce((obj, key) => {
-        if (Object.prototype.hasOwnProperty.call(req, key)) {
-            obj[key] = req[key];
+    const validSchema = ['params', 'query', 'body'].reduce((acc, key) => {
+        if (schema[key]) {
+            acc[key] = schema[key];
         }
-        return obj;
+        return acc;
     }, {});
-    const { value, error } = joi.compile(schema).validate(object)
-    //console.log(object);
+    const object = ['params', 'query', 'body'].reduce((acc, key) => {
+        if (schema[key]) {
+            acc[key] = req[key];
+        }
+        return acc;
+    }, {});
+    const { value, error } = joi.compile(validSchema).validate(object);
     if (error) {
         const errors = error.details.map((detail) => detail.message).join(',');
         next(new ApiError(400, errors));
-        //return res.status(400).send({ error: true, errors })
+    } else {
+        Object.assign(req, value);
+        next();
     }
-    return next();
 };
 
 module.exports = validate;

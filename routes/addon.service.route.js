@@ -2,7 +2,6 @@ const express = require('express');
 const addOnController = require('../controller/addon.services.controller');
 const router = express.Router();
 
-
 /**
  * @openapi
  * /api/addons:
@@ -115,7 +114,6 @@ const router = express.Router();
  *         description: Internal server error
  */
 
-
 /**
  * @openapi
  * components:
@@ -131,9 +129,16 @@ const router = express.Router();
  *           description: Name of the add-on option.
  *           example: "Extra Wax Coating"
  *         additionalPrice:
- *           type: number
- *           description: Additional price for this add-on.
- *           example: 25.00
+ *           type: object
+ *           properties:
+ *             minBasePrice:
+ *               type: number
+ *               description: Minimum base price for the add-on.
+ *               example: 10.00
+ *             maxPrice:
+ *               type: number
+ *               description: Maximum price for the add-on.
+ *               example: 20.00
  *         features:
  *           type: array
  *           description: List of additional features provided by this add-on.
@@ -164,6 +169,7 @@ const router = express.Router();
  *           description: Timestamp when the add-on was last updated.
  *           example: "2024-12-18T11:00:00Z"
  */
+
 
 router.post('/api/addons', addOnController.createAddOn); // Create an add-on
 router.get('/api/addons', addOnController.getAllAddOns); // Get all add-ons
