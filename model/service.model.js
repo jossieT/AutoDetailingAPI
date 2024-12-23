@@ -14,8 +14,8 @@ const serviceSchema = new mongoose.Schema({
         },
     },
     duration: {
-        SUV: { type: Number, required: true }, // Duration for SUV (in hours)
-        AUTO: { type: Number, required: true }, // Duration for AUTO (in hours)
+        SUV: { type: Number}, // Duration for SUV (in hours)
+        AUTO: { type: Number}, // Duration for AUTO (in hours)
     },
     image: { type: String },
     additionalServices: [

@@ -15,8 +15,8 @@ const createServiceSchema = {
             }),
         }).required(),
         duration: joi.object().keys({
-            SUV: joi.number().required(),
-            AUTO: joi.number().required(),
+            SUV: joi.number(),
+            AUTO: joi.number(),
         }).required(),
         image: joi.string().uri(),
         additionalServices: joi.array().items(joi.string()),
