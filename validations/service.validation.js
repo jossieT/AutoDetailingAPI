@@ -29,7 +29,7 @@ const updateServiceSchema = {
     body: joi.object().keys({
         name: joi.string(),
         description: joi.string(),
-        price: joi.object().keys({
+        pricing: joi.object().keys({
             SUV: joi.object().keys({
                 basePrice: joi.number(),
                 maxPrice: joi.number(),
