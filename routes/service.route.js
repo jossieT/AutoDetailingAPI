@@ -252,12 +252,12 @@ router.post('/api/service', validate(serviceValidation.createServiceSchema), upl
 router.get('/api/service', serviceController.getServices);
 
 // Get a specific service by ID
-router.get('/api/service/:serviceId', serviceController.getServiceById);
+router.get('/api/service/:serviceId', validate(serviceValidation.getServiceSchema), serviceController.getServiceById);
 
 // Update a specific service by ID
 router.patch('/api/service/:serviceId', validate(serviceValidation.updateServiceSchema), uploadServiceImages.single('image'), serviceController.updateServiceById);
 
 // Delete a specific service by ID
-router.delete('/api/service/:serviceId', serviceController.deleteServiceById);
+router.delete('/api/service/:serviceId', validate(serviceValidation.deleteServiceSchema), serviceController.deleteServiceById);
 
 module.exports = router;

@@ -49,19 +49,19 @@ const updateServiceSchema = {
         available: joi.boolean(),
     }),
     params: joi.object().keys({
-        id: joi.string().required(), // Assuming id is a service ID
+        serviceId: joi.string().required(), // Assuming id is a service ID
     }),
 };
 
 const getServiceSchema = {
     params: joi.object().keys({
-        id: joi.string().required(), // Assuming id is a service ID
+        serviceId: joi.string().required(), // Assuming id is a service ID
     }),
 };
 
 const deleteServiceSchema = {
     params: joi.object().keys({
-        id: joi.string().required(), // Assuming id is a service ID
+        serviceId: joi.string().required(), // Assuming id is a service ID
     }),
 };
 
