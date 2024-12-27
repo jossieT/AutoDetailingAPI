@@ -134,10 +134,9 @@ bookingSchema.pre('save', async function (next) {
         const totalDuration = serviceDuration + addOnDuration;
         
         // Add one hour (60 minutes) to the total duration
-        const totalDurationWithExtraHour = totalDuration + 60;
 
         // Calculate booking end time
-        const bookingEnd = new Date(bookingStart.getTime() + totalDurationWithExtraHour * 60 * 1000);
+        const bookingEnd = new Date(bookingStart.getTime() + totalDuration * 60 * 1000);
 
         // Store bookingEndTime in AM/PM format
         this.bookingEndTime = formatAMPM(bookingEnd);

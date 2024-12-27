@@ -8,7 +8,7 @@ const { parseAMPM, formatAMPM } = require('../helpers/time.formatter');
 const Service = require('../model/service.model');
 const transporter = require('../config/nodemailer');
 const { bookingConfirmationTemplate, staffNotificationTemplate } = require('../utils/emailTemplates');
-
+const AddOnService = require('../model/addon.service.model');
 const calculateTotalPrice = (services) => {
     // Use reduce to sum up all service base prices
     return services.reduce((total, service) => total + service.basePrice, 0);
@@ -65,7 +65,7 @@ const getAvailableSlots = async (date) => {
 
     // console.log(workingHours.unavailableSlots);
     // console.log(workingHours.availableSlots);
-    
+
 
     return availableSlots.sort((a, b) => {
         const timeToMinutes = (time) => {
@@ -88,7 +88,7 @@ const getAvailableSlots = async (date) => {
 
 // Create a new booking
 const createBooking = async (bookingData) => {
-    const { appointmentDate, serviceStartingTime, vehicleDetails, service_ids } = bookingData;
+    const { appointmentDate, serviceStartingTime, vehicleDetails, service_ids, selectedAddOns } = bookingData;
 
     // Validate required fields
     if (!vehicleDetails || !vehicleDetails.carType) {
@@ -117,15 +117,36 @@ const createBooking = async (bookingData) => {
 
     // Populate service details to calculate the duration
     const services = await Service.find({ _id: { $in: service_ids } }, 'duration');
-    const totalDuration = services.reduce((total, service) => {
+    const addOns = await AddOnService.find({ _id: { $in: bookingData.selectedAddOns } }, 'duration');
+
+    let totalDuration = 0;
+    const serviceDuration = services.reduce((total, service) => {
         if (!service.duration || !service.duration[vehicleDetails.carType]) {
             throw new Error(`Service ${service.name} does not have a duration for ${vehicleDetails.carType}.`);
         }
         return total + service.duration[vehicleDetails.carType];
     }, 0);
+
+    totalDuration += serviceDuration;
+
+    const addOnDuration = addOns.reduce((total, addOn) => {
+        if (!addOn.duration) {
+            throw new Error(`Add-On ${addOn.name} does not have a duration.`);
+        }
+        return total + addOn.duration;
+    }, 0);
+
+    if (selectedAddOns.length > 0) {
+        totalDuration += addOnDuration;
+    }
+
+    console.log(totalDuration);
+    console.log(formatAMPM(bookingStart));
     // Generate the time range to block (serviceStartingTime to bookingEndTime + 1 hour)
     const bookingEnd = new Date(bookingStart.getTime() + totalDuration * 60 * 1000);
-    const extendedEnd = new Date(bookingEnd.getTime() + 1 * 60 * 60 * 1000);
+    console.log(formatAMPM(bookingEnd));
+    const extendedEnd = new Date(bookingEnd.getTime() + 1 * 30 * 60 * 1000);
+    console.log(formatAMPM(extendedEnd))
 
     // Generate time slots to block
     const slotsToBlock = [];
@@ -193,23 +214,23 @@ const createBooking = async (bookingData) => {
 
     // Fetch service information for email templates
     const serviceInfo = await Service.find({ _id: { $in: service_ids } });
-
+    const addOnInfo = await AddOnService.find({ _id: { $in: bookingData.selectedAddOns } }).lean();
     // Format booking end time
-    const bookingEndTime = formatAMPM(bookingEnd);
+    const calculatedBookingEndTime = formatAMPM(bookingEnd);
 
     // Send email notifications
     const clientEmailOptions = {
         from: process.env.EMAIL_USER,
         to: bookingData.clientDetails.email,
-        subject: 'Booking Confirmation',
-        html: bookingConfirmationTemplate(newBooking, serviceInfo, bookingEndTime),
+        subject: ' Booking Received – Pending Confirmation',
+        html: bookingConfirmationTemplate(newBooking, serviceInfo, calculatedBookingEndTime, addOnInfo),
     };
 
     const staffEmailOptions = {
         from: process.env.EMAIL_USER,
         to: defaultStaff.email,
         subject: 'New Booking Assigned',
-        html: staffNotificationTemplate(newBooking, defaultStaff, serviceInfo, bookingEndTime),
+        html: staffNotificationTemplate(newBooking, defaultStaff, serviceInfo, calculatedBookingEndTime, addOnInfo),
     };
 
     try {
@@ -274,62 +295,62 @@ const updateBookingById = async (bookingId, updateData) => {
 
 // Delete a booking by ID
 const deleteBookingById = async (bookingId) => {
-     // Find the booking by ID
-     const booking = await Booking.findById(bookingId);
-     if (!booking) {
-         throw new ApiError(httpStatus.NOT_FOUND, 'Booking not found');
-     }
- 
-     // Release reserved time slots
-     if (booking.appointmentDate && booking.serviceStartingTime && booking.service_ids) {
-         const workingHours = await WorkingHours.findOne({ date: new Date(booking.appointmentDate) });
-         if (workingHours) {
-             const bookingStart = parseAMPM(booking.serviceStartingTime);
- 
-             // Calculate total duration (including the extra 1 hour)
-             const services = await Service.find({ _id: { $in: booking.service_ids } });
-             const totalDuration = services.reduce((total, service) => {
-                 if (!service.duration || !service.duration[booking.vehicleDetails.carType]) {
-                     throw new Error(
-                         `Service ${service.name} does not have a duration for ${booking.vehicleDetails.carType}.`
-                     );
-                 }
-                 return total + service.duration[booking.vehicleDetails.carType];
-             }, 0);
- 
-             const bookingEnd = new Date(bookingStart.getTime() + totalDuration * 60 * 1000);
-             const extendedEnd = new Date(bookingEnd.getTime() + 1 * 60 * 60 * 1000);
- 
-             // Generate time slots to release
-             const slotsToRelease = [];
-             for (let time = new Date(bookingStart); time <= extendedEnd; time.setMinutes(time.getMinutes() + 30)) {
-                 slotsToRelease.push(formatAMPM(new Date(time)));
-             }
- 
-             // Update working hours: remove slots from unavailableSlots and add back to availableSlots
-             workingHours.unavailableSlots = workingHours.unavailableSlots.filter(
-                 (slot) => !slotsToRelease.includes(slot)
-             );
-             workingHours.availableSlots = [...workingHours.availableSlots, ...slotsToRelease];
- 
-             // Ensure no duplicates in availableSlots
-             workingHours.availableSlots = [...new Set(workingHours.availableSlots)];
-             await workingHours.save();
-         }
-     }
- 
-     // Remove the booking ID from assigned staff
-     if (booking.assignedTo) {
-         await User.updateOne(
-             { _id: booking.assignedTo },
-             { $pull: { assignedBookings: booking._id } }
-         );
-     }
- 
-     // Finally, delete the booking
-     await booking.deleteOne();
- 
-     return { message: 'Booking deleted successfully, time slots released.' };
+    // Find the booking by ID
+    const booking = await Booking.findById(bookingId);
+    if (!booking) {
+        throw new ApiError(httpStatus.NOT_FOUND, 'Booking not found');
+    }
+
+    // Release reserved time slots
+    if (booking.appointmentDate && booking.serviceStartingTime && booking.service_ids) {
+        const workingHours = await WorkingHours.findOne({ date: new Date(booking.appointmentDate) });
+        if (workingHours) {
+            const bookingStart = parseAMPM(booking.serviceStartingTime);
+
+            // Calculate total duration (including the extra 1 hour)
+            const services = await Service.find({ _id: { $in: booking.service_ids } });
+            const totalDuration = services.reduce((total, service) => {
+                if (!service.duration || !service.duration[booking.vehicleDetails.carType]) {
+                    throw new Error(
+                        `Service ${service.name} does not have a duration for ${booking.vehicleDetails.carType}.`
+                    );
+                }
+                return total + service.duration[booking.vehicleDetails.carType];
+            }, 0);
+
+            const bookingEnd = new Date(bookingStart.getTime() + totalDuration * 60 * 1000);
+            const extendedEnd = new Date(bookingEnd.getTime() + 1 * 60 * 60 * 1000);
+
+            // Generate time slots to release
+            const slotsToRelease = [];
+            for (let time = new Date(bookingStart); time <= extendedEnd; time.setMinutes(time.getMinutes() + 30)) {
+                slotsToRelease.push(formatAMPM(new Date(time)));
+            }
+
+            // Update working hours: remove slots from unavailableSlots and add back to availableSlots
+            workingHours.unavailableSlots = workingHours.unavailableSlots.filter(
+                (slot) => !slotsToRelease.includes(slot)
+            );
+            workingHours.availableSlots = [...workingHours.availableSlots, ...slotsToRelease];
+
+            // Ensure no duplicates in availableSlots
+            workingHours.availableSlots = [...new Set(workingHours.availableSlots)];
+            await workingHours.save();
+        }
+    }
+
+    // Remove the booking ID from assigned staff
+    if (booking.assignedTo) {
+        await User.updateOne(
+            { _id: booking.assignedTo },
+            { $pull: { assignedBookings: booking._id } }
+        );
+    }
+
+    // Finally, delete the booking
+    await booking.deleteOne();
+
+    return { message: 'Booking deleted successfully, time slots released.' };
 };
 
 //assign staff to a booking 
