@@ -8,13 +8,9 @@ const httpStatus = require('http-status');
  * @returns {Promise<Service>}
  */
 const createService = async (serviceBody) => {
-    const isServiceNameTaken = await Service.findOne({ name: serviceBody.name });
-    if (isServiceNameTaken) {
-        throw new ApiError(httpStatus.BAD_REQUEST, "Service name is already taken");
-    }
-
-
-    return await Service.create(serviceBody);
+    const service = new Service(serviceBody);
+    await service.save();
+    return service;
 };
 
 /**
@@ -49,20 +45,10 @@ const getServicesByIds = async (serviceIds) => {
  * @returns {Promise<Service>}
  */
 const updateServiceById = async (serviceId, updateBody) => {
-    const service = await Service.findById(serviceId);
+    const service = await Service.findByIdAndUpdate(serviceId, updateBody, { new: true });
     if (!service) {
-        throw new ApiError(httpStatus.NOT_FOUND, "Service not found");
+        throw new ApiError(httpStatus.NOT_FOUND, 'Service not found');
     }
-
-    if (updateBody.name && updateBody.name !== service.name) {
-        const isServiceNameTaken = await Service.findOne({ name: updateBody.name });
-        if (isServiceNameTaken) {
-            throw new ApiError(httpStatus.BAD_REQUEST, "Service name is already taken");
-        }
-    }
-
-    Object.assign(service, updateBody);
-    await service.save();
     return service;
 };
 

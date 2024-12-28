@@ -2,8 +2,14 @@ const joi = require('joi');
 
 const createServiceSchema = {
     body: joi.object().keys({
-        name: joi.string().required(),
-        description: joi.string().required(),
+        name: joi.object().keys({
+            en: joi.string().required(),
+            am: joi.string().required(),
+        }).required(),
+        description: joi.object().keys({
+            en: joi.string().required(),
+            am: joi.string().required(),
+        }).required(),
         pricing: joi.object().keys({
             SUV: joi.object().keys({
                 basePrice: joi.number(),
@@ -20,15 +26,24 @@ const createServiceSchema = {
         }).required(),
         image: joi.string().uri(),
         additionalServices: joi.array().items(joi.string()),
-        features: joi.array().items(joi.string()),
+        features: joi.object().keys({
+            en: joi.array().items(joi.string()),
+            am: joi.array().items(joi.string()),
+        }),
         available: joi.boolean(),
     }),
 };
 
 const updateServiceSchema = {
     body: joi.object().keys({
-        name: joi.string(),
-        description: joi.string(),
+        name: joi.object().keys({
+            en: joi.string().required(),
+            am: joi.string().required(),
+        }).required(),
+        description: joi.object().keys({
+            en: joi.string().required(),
+            am: joi.string().required(),
+        }).required(),
         pricing: joi.object().keys({
             SUV: joi.object().keys({
                 basePrice: joi.number(),
@@ -45,7 +60,10 @@ const updateServiceSchema = {
         }),
         image: joi.string().uri(),
         additionalServices: joi.array().items(joi.string()),
-        features: joi.array().items(joi.string()),
+        features: joi.object().keys({
+            en: joi.array().items(joi.string()),
+            am: joi.array().items(joi.string()),
+        }),
         available: joi.boolean(),
     }),
     params: joi.object().keys({

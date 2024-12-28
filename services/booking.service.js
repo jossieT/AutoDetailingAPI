@@ -1,6 +1,5 @@
 const Booking = require('../model/booking.model');
 const User = require('../model/user.model');
-//const DayOff = require('../model/day-off.model');
 const WorkingHours = require('../model/working.hours.model');
 const { ApiError } = require('../utils/ApiError');
 const httpStatus = require('http-status');
@@ -92,24 +91,24 @@ const createBooking = async (bookingData) => {
 
     // Validate required fields
     if (!vehicleDetails || !vehicleDetails.carType) {
-        throw new Error('Vehicle type (SUV or AUTO) must be specified for booking.');
+        throw new ApiError(httpStatus.BAD_REQUEST, 'Vehicle type (SUV or AUTO) must be specified for booking.');
     }
     if (!service_ids || service_ids.length === 0) {
-        throw new Error('At least one service must be selected.');
+        throw new ApiError(httpStatus.BAD_REQUEST, 'At least one service must be selected.');
     }
 
     const workingHours = await WorkingHours.findOne({ date: new Date(appointmentDate) });
-    if (!workingHours) throw new Error('Working hours not initialized for the selected date.');
+    if (!workingHours) throw new ApiError(httpStatus.NOT_FOUND, 'Working hours not initialized for the selected date.');
 
-    if (workingHours.dayOff) throw new Error('No bookings allowed on a full day off.');
+    if (workingHours.dayOff) throw new ApiError(httpStatus.BAD_REQUEST, 'No bookings allowed on a full day off.');
 
     if (workingHours.partialDayOff.includes(serviceStartingTime)) {
-        throw new Error('Selected time slot falls within a partial day-off.');
+        throw new ApiError(httpStatus.BAD_REQUEST, 'Selected time slot falls within a partial day-off.');
     }
 
     // Check slot availability
     if (!workingHours.availableSlots.includes(serviceStartingTime)) {
-        throw new Error('Selected time slot is not available.');
+        throw new ApiError(httpStatus.BAD_REQUEST, 'Selected time slot is not available.');
     }
 
     // Calculate bookingEndTime based on selected services and vehicle type
@@ -122,7 +121,7 @@ const createBooking = async (bookingData) => {
     let totalDuration = 0;
     const serviceDuration = services.reduce((total, service) => {
         if (!service.duration || !service.duration[vehicleDetails.carType]) {
-            throw new Error(`Service ${service.name} does not have a duration for ${vehicleDetails.carType}.`);
+            throw new ApiError(httpStatus.BAD_REQUEST, `Service ${service.name} does not have a duration for ${vehicleDetails.carType}.`);
         }
         return total + service.duration[vehicleDetails.carType];
     }, 0);
@@ -131,12 +130,12 @@ const createBooking = async (bookingData) => {
 
     const addOnDuration = addOns.reduce((total, addOn) => {
         if (!addOn.duration) {
-            throw new Error(`Add-On ${addOn.name} does not have a duration.`);
+            throw new ApiError(httpStatus.BAD_REQUEST, `Add-On ${addOn.name} does not have a duration.`);
         }
         return total + addOn.duration;
     }, 0);
 
-    if (selectedAddOns.length > 0) {
+    if (selectedAddOns) {
         totalDuration += addOnDuration;
     }
 
@@ -145,22 +144,22 @@ const createBooking = async (bookingData) => {
     // Generate the time range to block (serviceStartingTime to bookingEndTime + 1 hour)
     const bookingEnd = new Date(bookingStart.getTime() + totalDuration * 60 * 1000);
     console.log(formatAMPM(bookingEnd));
-    const extendedEnd = new Date(bookingEnd.getTime() + 1 * 30 * 60 * 1000);
-    console.log(formatAMPM(extendedEnd))
+    const extendedEnd = new Date(bookingEnd.getTime() + 1 * 60 * 60 * 1000);
+    console.log(formatAMPM(extendedEnd));
 
     // Generate time slots to block
     const slotsToBlock = [];
     for (let time = new Date(bookingStart); time <= extendedEnd; time.setMinutes(time.getMinutes() + 30)) {
         slotsToBlock.push(formatAMPM(new Date(time)));
     }
-
+    slotsToBlock.push(formatAMPM(extendedEnd));
     // Convert working hours to Date objects
     //const workStart = new Date(`1970-01-01T${workingHours.availableSlots[0]}:00`);
     const workEnd = new Date(`1970-01-01T${workingHours.availableSlots.slice(-1)[0]}:00`);
 
     // Check if the booking end time is within working hours
     if (bookingEnd > workEnd) {
-        throw new Error('Booking duration exceeds the end of working hours.');
+        throw new ApiError(httpStatus.BAD_REQUEST, 'Booking duration exceeds the end of working hours.');
     }
 
 
@@ -179,18 +178,18 @@ const createBooking = async (bookingData) => {
     );
 
     if (!isItAvailable) {
-        throw new Error('One or more requested slots are not available.');
+        throw new ApiError(httpStatus.BAD_REQUEST, 'One or more requested slots are not available.');
     }
 
     // Validate slot availability
     const isAvailable = slotsToBlock.every(
         (slot) => workingHours.availableSlots.includes(slot) && !workingHours.unavailableSlots.includes(slot)
     );
-    if (!isAvailable) throw new Error('One or more requested slots are unavailable.');
+    if (!isAvailable) throw new ApiError(httpStatus.BAD_REQUEST, 'One or more requested slots are unavailable.');
 
     // Find a staff member
     const defaultStaff = await User.findOne({ role: 'staff' });
-    if (!defaultStaff) throw new Error('No staff available for assignment');
+    if (!defaultStaff) throw new ApiError(httpStatus.NOT_FOUND, 'No staff available for assignment');
 
     // Mark the slot as unavailable
     // Update unavailable and available slots
@@ -311,9 +310,7 @@ const deleteBookingById = async (bookingId) => {
             const services = await Service.find({ _id: { $in: booking.service_ids } });
             const totalDuration = services.reduce((total, service) => {
                 if (!service.duration || !service.duration[booking.vehicleDetails.carType]) {
-                    throw new Error(
-                        `Service ${service.name} does not have a duration for ${booking.vehicleDetails.carType}.`
-                    );
+                    throw new ApiError(httpStatus.BAD_REQUEST, `Service ${service.name} does not have a duration for ${booking.vehicleDetails.carType}.`);
                 }
                 return total + service.duration[booking.vehicleDetails.carType];
             }, 0);

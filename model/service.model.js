@@ -1,8 +1,14 @@
 const mongoose = require('mongoose');
 
 const serviceSchema = new mongoose.Schema({
-    name: { type: String, required: true },
-    description: { type: String, required: true },
+    name: {
+        en: { type: String, required: true }, // English name
+        am: { type: String, required: true }, // Amharic name
+    },
+    description: {
+        en: { type: String, required: true }, // English description
+        am: { type: String, required: true }, // Amharic description
+    },
     pricing: {
         SUV: {
             basePrice: { type: Number}, // Base price for SUV
@@ -24,7 +30,10 @@ const serviceSchema = new mongoose.Schema({
             ref: 'AddOnService', // Reference to AddOnService schema
         },
     ],
-    features: [{ type: String }],
+    features: {
+        en: [{ type: String }], // Features in English
+        am: [{ type: String }], // Features in Amharic
+    },
     available: { type: Boolean, default: true },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },

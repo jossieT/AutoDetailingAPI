@@ -7,10 +7,10 @@ const bookingConfirmationTemplate = (booking, serviceInfo, bookingEndTime, addOn
     <ul>
         <li><strong>Date:</strong> ${booking.appointmentDate}</li>
         <li><strong>Time:</strong> ${booking.serviceStartingTime} - ${bookingEndTime}</li>
-        <li><strong>Service Package:</strong> ${serviceInfo.map(service => service.name).join(', ')}</li>
+        <li><strong>Service Package:</strong> ${serviceInfo.map(service => service.name.en).join(', ')}</li>
         ${
             addOns.length > 0
-            ? `<li><strong>Add-On Service:</strong> ${addOns.map(addOn => addOn.optionName).join(', ')}</li>`
+            ? `<li><strong>Add-On Service:</strong> ${addOns.map(addOn => addOn.optionName.en).join(', ')}</li>`
             : ''
         }
     </ul>
@@ -40,13 +40,13 @@ const staffNotificationTemplate = (booking, staff, serviceInfo, bookingEndTime, 
         <ul>
             <li><strong>Date:</strong> ${booking.appointmentDate}</li>
             <li><strong>Time:</strong> ${booking.serviceStartingTime} - ${bookingEndTime}</li>
-            <li><strong>Services:</strong> ${serviceInfo.map(service => service.name).join(', ')}</li>
+            <li><strong>Services:</strong> ${serviceInfo.map(service => service.name.en).join(', ')}</li>
             
              ${addOns.length > 0
             ? `<li><strong>Add-On Services:</strong> 
                         <ul>
                             ${addOns.map(addOn => `
-                                <li><strong>${addOn.optionName}:</strong> ${addOn.description || 'No description provided'}</li>
+                                <li><strong>${addOn.optionName.en}:</strong> ${addOn.description.en || 'No description provided'}</li>
                             `).join('')}
                         </ul>
                        </li>`
