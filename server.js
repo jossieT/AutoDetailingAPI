@@ -31,10 +31,26 @@ const mongoSanitize = require('express-mongo-sanitize');
 //const bodyParser = require('body-parser');
 const app = express();
 
+
+const allowedOrigins = [
+  'https://www.swiftaddisdetailing.com',
+  'https://swift-addis.vercel.app',
+];
+
+// CORS middleware for multiple origins
 app.use(cors({
-  origin: '*', // Allow all origins (use specific origins for better security)
+  origin: (origin, callback) => {
+    // Allow requests with no origin (e.g., mobile apps or Postman)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true); // Origin is allowed
+    } else {
+      return callback(new Error('Not allowed by CORS')); // Origin is not allowed
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'], // Allowed methods
   allowedHeaders: ['Content-Type', 'Authorization'], // Allowed headers
+  credentials: true, // Allow cookies if needed
 }));
 
 app.use(morgan.successHandler);
