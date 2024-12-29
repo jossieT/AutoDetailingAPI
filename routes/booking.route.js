@@ -2,6 +2,9 @@ const express = require('express');
 const bookingController = require('../controller/booking.controller');
 const { uploadBookingImages } = require('../middlewares/multer');
 const router = express.Router();
+const validate = require('../middlewares/validate');
+const bookingValidation = require('../validations/booking.validation');
+
 
 /**
  * @openapi
@@ -348,19 +351,19 @@ const router = express.Router();
 router.get('/api/available-slots', bookingController.getAvailableSlots);
 
 // Create a new booking
-router.post('/api/bookings', uploadBookingImages.array('images', 10), bookingController.createBooking);
+router.post('/api/bookings', validate(bookingValidation.createBookingSchema), uploadBookingImages.array('images', 10), bookingController.createBooking);
 
 // Get all bookings
 router.get('/api/bookings', bookingController.getAllBookings);
 
 // Get a booking by ID
-router.get('/api/bookings/:bookingId', bookingController.getBookingById);
+router.get('/api/bookings/:bookingId', validate(bookingValidation.getBookingSchema), bookingController.getBookingById);
 
 // Update a booking by ID
-router.patch('/api/bookings/:bookingId', bookingController.updateBookingById);
+router.patch('/api/bookings/:bookingId',  validate(bookingValidation.updateBookingSchema), bookingController.updateBookingById);
 
 // Delete a booking by ID
-router.delete('/api/bookings/:bookingId', bookingController.deleteBookingById);
+router.delete('/api/bookings/:bookingId', validate(bookingValidation.deleteBookingSchema), bookingController.deleteBookingById);
 
 // Assign a user to a booking
 router.patch('/api/bookings/:bookingId/assign/:userId', bookingController.assignUserToBooking);

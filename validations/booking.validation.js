@@ -40,26 +40,26 @@ const updateBookingSchema = {
         }).optional(),
         services: joi.array().items(joi.string().optional()).optional(), // Assuming service IDs are strings
         selectedAddOns: joi.array().items(joi.string().optional()), // Assuming add-on service IDs are strings
-        appointmentDate: joi.date().optional(),
-        serviceStartingTime: joi.string().optional(),
+        appointmentDate: joi.date().required(),
+        serviceStartingTime: joi.string().required(),
         bookingEndTime: joi.string().optional(),
         status: joi.string().valid('Pending', 'Confirmed', 'Completed', 'Canceled').optional(),
         assignedTo: joi.string().optional(), // Assuming user IDs are strings
     }),
     params: joi.object().keys({
-        id: joi.string().required(), // Assuming booking ID is a string
+        bookingId: joi.string().required(), // Assuming booking ID is a string
     }),
 };
 
 const getBookingSchema = {
     params: joi.object().keys({
-        id: joi.string().required(), // Assuming booking ID is a string
+        bookingId: joi.string().required(), // Assuming booking ID is a string
     }),
 };
 
 const deleteBookingSchema = {
     params: joi.object().keys({
-        id: joi.string().required(), // Assuming booking ID is a string
+        bookingId: joi.string().required(), // Assuming booking ID is a string
     }),
 };
 
