@@ -90,12 +90,13 @@ const createBooking = async (bookingData) => {
     const { appointmentDate, serviceStartingTime, vehicleDetails, service_ids, selectedAddOns } = bookingData;
 
     // Validate required fields
-    if (!vehicleDetails || !vehicleDetails.carType) {
-        throw new ApiError(httpStatus.BAD_REQUEST, 'Vehicle type (SUV or AUTO) must be specified for booking.');
-    }
-    if (!service_ids || service_ids.length === 0) {
-        throw new ApiError(httpStatus.BAD_REQUEST, 'At least one service must be selected.');
-    }
+    // if (!vehicleDetails || !vehicleDetails.carType) {
+    //     throw new ApiError(httpStatus.BAD_REQUEST, 'Vehicle type (SUV or AUTO) must be specified for booking.');
+    // }
+
+    // if (!service_ids || service_ids.length === 0) {
+    //     throw new ApiError(httpStatus.BAD_REQUEST, 'At least one service must be selected.');
+    // }
 
     const workingHours = await WorkingHours.findOne({ date: new Date(appointmentDate) });
     if (!workingHours) throw new ApiError(httpStatus.NOT_FOUND, 'Working hours not initialized for the selected date.');
@@ -105,6 +106,8 @@ const createBooking = async (bookingData) => {
     if (workingHours.partialDayOff.includes(serviceStartingTime)) {
         throw new ApiError(httpStatus.BAD_REQUEST, 'Selected time slot falls within a partial day-off.');
     }
+
+
 
     // Check slot availability
     if (!workingHours.availableSlots.includes(serviceStartingTime)) {
@@ -139,47 +142,39 @@ const createBooking = async (bookingData) => {
         totalDuration += addOnDuration;
     }
 
-    console.log(totalDuration);
-    console.log(formatAMPM(bookingStart));
+
     // Generate the time range to block (serviceStartingTime to bookingEndTime + 1 hour)
     const bookingEnd = new Date(bookingStart.getTime() + totalDuration * 60 * 1000);
-    console.log(formatAMPM(bookingEnd));
     const extendedEnd = new Date(bookingEnd.getTime() + 1 * 60 * 60 * 1000);
-    console.log(formatAMPM(extendedEnd));
 
     // Generate time slots to block
     const slotsToBlock = [];
-    for (let time = new Date(bookingStart); time <= extendedEnd; time.setMinutes(time.getMinutes() + 30)) {
+    for (let time = new Date(bookingStart); time < extendedEnd; time.setMinutes(time.getMinutes() + 30)) {
         slotsToBlock.push(formatAMPM(new Date(time)));
     }
-    slotsToBlock.push(formatAMPM(extendedEnd));
+    //slotsToBlock.push(formatAMPM(extendedEnd));
     // Convert working hours to Date objects
     //const workStart = new Date(`1970-01-01T${workingHours.availableSlots[0]}:00`);
-    const workEnd = new Date(`1970-01-01T${workingHours.availableSlots.slice(-1)[0]}:00`);
-
-    // Check if the booking end time is within working hours
-    if (bookingEnd > workEnd) {
-        throw new ApiError(httpStatus.BAD_REQUEST, 'Booking duration exceeds the end of working hours.');
-    }
+    
 
 
 
     // Generate time slots to check
-    const slotsToCheck = [];
-    let current = bookingStart;
-    while (current < bookingEnd) {
-        slotsToCheck.push(formatAMPM(current));
-        current = new Date(current.getTime() + 30 * 60 * 1000); // Increment by 30 minutes
-    }
+    // const slotsToCheck = [];
+    // let current = bookingStart;
+    // while (current < bookingEnd) {
+    //     slotsToCheck.push(formatAMPM(current));
+    //     current = new Date(current.getTime() + 30 * 60 * 1000); // Increment by 30 minutes
+    // }
 
-    // Ensure all slots are available
-    const isItAvailable = slotsToCheck.every(
-        (slot) => workingHours.availableSlots.includes(slot) && !workingHours.unavailableSlots.includes(slot)
-    );
+    // // Ensure all slots are available
+    // const isItAvailable = slotsToCheck.every(
+    //     (slot) => workingHours.availableSlots.includes(slot) && !workingHours.unavailableSlots.includes(slot)
+    // );
 
-    if (!isItAvailable) {
-        throw new ApiError(httpStatus.BAD_REQUEST, 'One or more requested slots are not available.');
-    }
+    // if (!isItAvailable) {
+    //     throw new ApiError(httpStatus.BAD_REQUEST, 'One or more requested slots are not available.');
+    // }
 
     // Validate slot availability
     const isAvailable = slotsToBlock.every(
