@@ -1,4 +1,6 @@
 const addOnService = require('../services/addon.services.service');
+const { ApiError } = require('../utils/ApiError');
+const httpStatus = require('http-status');
 
 /**
  * Create a new add-on service
@@ -31,10 +33,9 @@ const getAddOnById = async (req, res, next) => {
     try {
         const addOn = await addOnService.getAddOnById(req.params.id);
         if (!addOn) {
-            res.status(404).json({ message: 'Add-on not found' });
-        } else {
-            res.status(200).json({ message: 'Add-on fetched successfully', data: addOn });
+            throw new ApiError(httpStatus.NOT_FOUND, 'Add-on not found');
         }
+        res.status(200).json({ message: 'Add-on fetched successfully', data: addOn });
     } catch (error) {
         next(error);
     }
@@ -47,10 +48,9 @@ const updateAddOn = async (req, res, next) => {
     try {
         const updatedAddOn = await addOnService.updateAddOn(req.params.id, req.body);
         if (!updatedAddOn) {
-            res.status(404).json({ message: 'Add-on not found' });
-        } else {
-            res.status(200).json({ message: 'Add-on updated successfully', data: updatedAddOn });
+            throw new ApiError(httpStatus.NOT_FOUND, 'Add-on not found');
         }
+        res.status(200).json({ message: 'Add-on updated successfully', data: updatedAddOn });
     } catch (error) {
         next(error);
     }
@@ -63,10 +63,9 @@ const deleteAddOn = async (req, res, next) => {
     try {
         const deletedAddOn = await addOnService.deleteAddOn(req.params.id);
         if (!deletedAddOn) {
-            res.status(404).json({ message: 'Add-on not found' });
-        } else {
-            res.status(200).json({ message: 'Add-on deleted successfully' });
+            throw new ApiError(httpStatus.NOT_FOUND, 'Add-on not found');
         }
+        res.status(200).json({ message: 'Add-on deleted successfully' });
     } catch (error) {
         next(error);
     }

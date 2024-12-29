@@ -91,6 +91,8 @@ app.use(dayOffRouter);
 app.use(staffRouter);
 app.use(addOnRoutes);
 app.use('/api/blogs', blogRoutes);
+app.use(errorConverter);
+app.use(errorHandler);
 
 app.use((req, res, next) => {
   next(new ApiError(httpStatus.NOT_FOUND, 'Not Found'));
