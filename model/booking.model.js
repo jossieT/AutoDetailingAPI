@@ -21,8 +21,8 @@ const bookingSchema = new mongoose.Schema({
     location: {
         address: { type: String },
         coordinates: {
-            latitude: { type: Number, required: true },
-            longitude: { type: Number, required: true },
+            latitude: { type: Number },
+            longitude: { type: Number },
         },
     },
     service_ids: [
@@ -52,7 +52,6 @@ const bookingSchema = new mongoose.Schema({
     },
     appointmentNote: {
         type: String,
-        required: false,
     },
     totalPrice: { type: Number },
     createdAt: { type: Date, default: Date.now },
