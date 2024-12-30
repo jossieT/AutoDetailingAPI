@@ -6,7 +6,7 @@ const bookingSchema = new mongoose.Schema({
         firstName: { type: String, required: true },
         lastName: { type: String, required: true },
         phone: { type: String, required: true },
-        email: { type: String, required: true },
+        email: { type: String},
     },
     vehicleDetails: {
         carType: { type: String, enum: ['SUV', 'AUTO'], default: 'SUV', required: true, trim: true }, // e.g., "Sedan", "SUV", etc.

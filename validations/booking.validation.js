@@ -6,7 +6,7 @@ const createBookingSchema = {
             firstName: joi.string().required(),
             lastName: joi.string().required(),
             phone: joi.string().required(),
-            email: joi.string().email().required(),
+            email: joi.string().email(),
         }).required(),
         vehicleDetails: joi.object().keys({
             carType: joi.string().valid('SUV', 'AUTO').required(),
