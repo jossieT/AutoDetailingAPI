@@ -32,7 +32,7 @@ const createBookingSchema = {
         appointmentDate: joi.date().required(),
         serviceStartingTime: joi.string().required(),
         bookingEndTime: joi.string().optional(),
-        appointmentNote: joi.string().optional(),
+        appointmentNote: joi.string().allow('').optional(),
         status: joi.string().valid('Pending', 'Confirmed', 'Completed', 'Canceled').default('Pending'),
         assignedTo: joi.string().optional(), // Assuming user IDs are strings
     }),
