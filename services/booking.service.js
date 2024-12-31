@@ -36,7 +36,7 @@ const initializeWorkingHours = async (date) => {
     const existing = await WorkingHours.findOne({ date: new Date(date) });
 
     if (!existing) {
-        const timeSlots = generateTimeSlots('06:00', '17:00', 30); // Default 30-min intervals
+        const timeSlots = generateTimeSlots('06:00', '18:30', 30); // Default 30-min intervals
         const workingHours = new WorkingHours({
             date: new Date(date),
             availableSlots: timeSlots,
@@ -51,9 +51,33 @@ const initializeWorkingHours = async (date) => {
 const getAvailableSlots = async (date) => {
     const workingHours = await WorkingHours.findOne({ date: new Date(date) });
 
+    const filterSlots = (slots) => {
+        const timeToMinutes = (time) => {
+            const [hours, minutesPeriod] = time.split(':');
+            const [minutes, period] = minutesPeriod.split(' ');
+            const hoursIn24 = period === 'PM' && parseInt(hours) !== 12
+                ? parseInt(hours) + 12
+                : period === 'AM' && parseInt(hours) === 12
+                    ? 0
+                    : parseInt(hours);
+            return hoursIn24 * 60 + parseInt(minutes);
+        };
+
+        const startBoundary = timeToMinutes('06:00 AM'); // Start of range
+        const endBoundary = timeToMinutes('04:30 PM');  // End of range
+
+        return slots.filter((slot) => {
+            const slotInMinutes = timeToMinutes(slot);
+            return slotInMinutes >= startBoundary && slotInMinutes <= endBoundary;
+        });
+    };
+
+
+
     if (!workingHours) {
         await initializeWorkingHours(date);
-        return generateTimeSlots('06:00', '17:00', 30);
+        const allSlots = generateTimeSlots('06:00', '18:30', 30);
+        return filterSlots(allSlots);
     }
 
     if (workingHours.dayOff) {
@@ -66,7 +90,7 @@ const getAvailableSlots = async (date) => {
     // console.log(workingHours.availableSlots);
 
 
-    return availableSlots.sort((a, b) => {
+    const allSlot = availableSlots.sort((a, b) => {
         const timeToMinutes = (time) => {
             const [hours, minutesPeriod] = time.split(':');
             const [minutes, period] = minutesPeriod.split(' ');
@@ -81,6 +105,27 @@ const getAvailableSlots = async (date) => {
         return timeToMinutes(a) - timeToMinutes(b);
     });
 
+    
+
+    const filteredSlots = filterSlots(allSlot);
+
+    return filteredSlots;
+
+    // const filterSlotsForDisplay = (slots) => {
+    //     const timeToMinutes = (time) => {
+    //         const [hours, minutesPeriod] = time.split(':');
+    //         const [minutes, period] = minutesPeriod.split(' ');
+    //         const hoursIn24 = period === 'PM' && parseInt(hours) !== 12
+    //             ? parseInt(hours) + 12
+    //             : period === 'AM' && parseInt(hours) === 12
+    //                 ? 0
+    //                 : parseInt(hours);
+    //         return hoursIn24 * 60 + parseInt(minutes);
+    //     };
+
+
+
+    // }
 };
 
 
@@ -99,6 +144,7 @@ const createBooking = async (bookingData) => {
     // }
 
     const workingHours = await WorkingHours.findOne({ date: new Date(appointmentDate) });
+
     if (!workingHours) throw new ApiError(httpStatus.NOT_FOUND, 'Working hours not initialized for the selected date.');
 
     if (workingHours.dayOff) throw new ApiError(httpStatus.BAD_REQUEST, 'No bookings allowed on a full day off.');
@@ -109,7 +155,7 @@ const createBooking = async (bookingData) => {
 
 
 
-    // Check slot availability
+    //Check slot availabilityavailableSlots
     if (!workingHours.availableSlots.includes(serviceStartingTime)) {
         throw new ApiError(httpStatus.BAD_REQUEST, 'Selected time slot is not available.');
     }
@@ -143,6 +189,7 @@ const createBooking = async (bookingData) => {
     }
 
 
+
     // Generate the time range to block (serviceStartingTime to bookingEndTime + 1 hour)
     const bookingEnd = new Date(bookingStart.getTime() + totalDuration * 60 * 1000);
     const extendedEnd = new Date(bookingEnd.getTime() + 1 * 60 * 60 * 1000);
@@ -155,7 +202,13 @@ const createBooking = async (bookingData) => {
     //slotsToBlock.push(formatAMPM(extendedEnd));
     // Convert working hours to Date objects
     //const workStart = new Date(`1970-01-01T${workingHours.availableSlots[0]}:00`);
-    
+
+    // const workEnd = new Date(`1970-01-01T12:00:00`);
+    // console.log(workEnd);
+    // console.log(bookingEnd);
+    // if (bookingEnd > workEnd) {
+    //     throw new ApiError(httpStatus.BAD_REQUEST, 'Booking duration exceeds the end of working hours.');
+    // }
 
 
 
@@ -176,11 +229,18 @@ const createBooking = async (bookingData) => {
     //     throw new ApiError(httpStatus.BAD_REQUEST, 'One or more requested slots are not available.');
     // }
 
-    // Validate slot availability
+    //Validate slot availability
     const isAvailable = slotsToBlock.every(
         (slot) => workingHours.availableSlots.includes(slot) && !workingHours.unavailableSlots.includes(slot)
     );
     if (!isAvailable) throw new ApiError(httpStatus.BAD_REQUEST, 'One or more requested slots are unavailable.');
+
+    // new imlemented extended to 12 hr PM
+    // const isAvailable = slotsToBlock.every(
+    //     (slot) => workingHours.availableSlots.includes(slot) || slot >= '12:00 PM'
+    // );
+    // if (!isAvailable) throw new ApiError(httpStatus.BAD_REQUEST, 'One or more requested slots are unavailable.');
+
 
     // Find a staff member
     const defaultStaff = await User.findOne({ role: 'staff' });
