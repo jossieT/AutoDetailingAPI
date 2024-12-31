@@ -36,7 +36,7 @@ const initializeWorkingHours = async (date) => {
     const existing = await WorkingHours.findOne({ date: new Date(date) });
 
     if (!existing) {
-        const timeSlots = generateTimeSlots('06:00', '18:30', 30); // Default 30-min intervals
+        const timeSlots = generateTimeSlots('06:00', '19:00', 30); // Default 30-min intervals
         const workingHours = new WorkingHours({
             date: new Date(date),
             availableSlots: timeSlots,
@@ -76,7 +76,7 @@ const getAvailableSlots = async (date) => {
 
     if (!workingHours) {
         await initializeWorkingHours(date);
-        const allSlots = generateTimeSlots('06:00', '18:30', 30);
+        const allSlots = generateTimeSlots('06:00', '19:00', 30);
         return filterSlots(allSlots);
     }
 
@@ -105,7 +105,7 @@ const getAvailableSlots = async (date) => {
         return timeToMinutes(a) - timeToMinutes(b);
     });
 
-    
+
 
     const filteredSlots = filterSlots(allSlot);
 
