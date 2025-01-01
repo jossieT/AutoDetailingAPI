@@ -66,6 +66,17 @@ const assignUserToBooking = catchAsync(async (req, res) => {
     res.status(200).json(updatedBooking);
 });
 
+const approveBooking = catchAsync(async (req, res) => {
+    const booking = await bookingService.approveBooking(req.params.bookingId);
+    res.status(200).json({ message: 'Booking approved successfully', data: booking });
+});
+
+const cancelBooking = catchAsync(async (req, res) => {
+    const booking = await bookingService.cancelBooking(req.params.bookingId);
+    res.status(200).json({ message: 'Booking canceled successfully', data: booking });
+});
+
+
 module.exports = {
     createBooking,
     getAllBookings,
@@ -74,4 +85,6 @@ module.exports = {
     deleteBookingById,
     assignUserToBooking,
     getAvailableSlots,
+    approveBooking,
+    cancelBooking
 };

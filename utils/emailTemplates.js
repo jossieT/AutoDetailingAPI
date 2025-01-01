@@ -61,7 +61,36 @@ const staffNotificationTemplate = (booking, staff, serviceInfo, bookingEndTime, 
     `;
 };
 
+const bookingApprovalTemplate = (booking) => {
+    
+    return `
+    <h1>Booking Confirmed</h1>
+    <p>Your booking has been confirmed.</p>
+    <p>Details:</p>
+    <ul>
+        <li>Service: ${booking.service_ids.map(service => service.name).join(', ')}</li>
+        <li>Date: ${booking.appointmentDate}</li>
+        <li>Time: ${booking.serviceStartingTime}</li>
+    </ul>
+`;
+}
+
+const bookingCancellationTemplate = (booking, canceledBy) => {
+    return `
+    <h1>Booking Canceled</h1>
+    <p>Your booking has been canceled by ${canceledBy}.</p>
+    <p>Details:</p>
+    <ul>
+        <li>Service: ${booking.service_ids.map(service => service.name).join(', ')}</li>
+        <li>Date: ${booking.appointmentDate}</li>
+        <li>Time: ${booking.serviceStartingTime}</li>
+    </ul>
+`;
+}
+
 module.exports = {
     bookingConfirmationTemplate,
     staffNotificationTemplate,
+    bookingApprovalTemplate,
+    bookingCancellationTemplate
 };

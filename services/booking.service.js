@@ -6,7 +6,7 @@ const httpStatus = require('http-status');
 const { parseAMPM, formatAMPM } = require('../helpers/time.formatter');
 const Service = require('../model/service.model');
 const transporter = require('../config/nodemailer');
-const { bookingConfirmationTemplate, staffNotificationTemplate } = require('../utils/emailTemplates');
+const { bookingConfirmationTemplate, staffNotificationTemplate, bookingCancellationTemplate,bookingApprovalTemplate  } = require('../utils/emailTemplates');
 const AddOnService = require('../model/addon.service.model');
 const calculateTotalPrice = (services) => {
     // Use reduce to sum up all service base prices
@@ -419,97 +419,98 @@ const assignUserToBooking = async (bookingId, userId) => {
     return booking;
 };
 
-// // Approve a booking
-// const approveBooking = async (bookingId) => {
-//     const booking = await Booking.findById(bookingId);
-//     if (!booking) {
-//         throw new ApiError(httpStatus.NOT_FOUND, 'Booking not found');
-//     }
+// Approve a booking
+const approveBooking = async (bookingId) => {
+    const booking = await Booking.findById(bookingId);
+    console.log(booking);
+    if (!booking) {
+        throw new ApiError(httpStatus.NOT_FOUND, 'Booking not found');
+    }
 
-//     booking.status = 'Confirmed';
-//     await booking.save();
+    booking.status = 'Confirmed';
+    await booking.save();
 
-//     // Send email notification to client
-//     const clientEmailOptions = {
-//         from: process.env.EMAIL_USER,
-//         to: booking.clientDetails.email,
-//         subject: 'Booking Confirmed',
-//         html: bookingConfirmationTemplate(booking),
-//     };
+    // Send email notification to client
+    const clientEmailOptions = {
+        from: process.env.EMAIL_USER,
+        to: booking.clientDetails.email,
+        subject: 'Booking Confirmed',
+        html: bookingApprovalTemplate(booking),
+    };
 
-//     try {
-//         await transporter.sendMail(clientEmailOptions);
-//         console.log('Client email sent successfully');
-//     } catch (error) {
-//         console.error('Failed to send client email:', error);
-//     }
+    try {
+        await transporter.sendMail(clientEmailOptions);
+        console.log('Client email sent successfully');
+    } catch (error) {
+        console.error('Failed to send client email:', error);
+    }
 
-//     return booking;
-// };
+    return booking;
+};
 
-// // Cancel a booking
-// const cancelBooking = async (bookingId, canceledBy) => {
-//     const booking = await Booking.findById(bookingId);
-//     if (!booking) {
-//         throw new ApiError(httpStatus.NOT_FOUND, 'Booking not found');
-//     }
+// Cancel a booking
+const cancelBooking = async (bookingId) => {
+    const booking = await Booking.findById(bookingId);
+    if (!booking) {
+        throw new ApiError(httpStatus.NOT_FOUND, 'Booking not found');
+    }
 
-//     booking.status = 'Canceled';
-//     await booking.save();
+    booking.status = 'Canceled';
+    await booking.save();
 
-//     // Release reserved time slots
-//     if (booking.appointmentDate && booking.serviceStartingTime && booking.service_ids) {
-//         const workingHours = await WorkingHours.findOne({ date: new Date(booking.appointmentDate) });
-//         if (workingHours) {
-//             const bookingStart = parseAMPM(booking.serviceStartingTime);
+    // Release reserved time slots
+    if (booking.appointmentDate && booking.serviceStartingTime && booking.service_ids) {
+        const workingHours = await WorkingHours.findOne({ date: new Date(booking.appointmentDate) });
+        if (workingHours) {
+            const bookingStart = parseAMPM(booking.serviceStartingTime);
 
-//             // Calculate total duration (including the extra 1 hour)
-//             const services = await Service.find({ _id: { $in: booking.service_ids } });
-//             const totalDuration = services.reduce((total, service) => {
-//                 if (!service.duration || !service.duration[booking.vehicleDetails.carType]) {
-//                     throw new ApiError(httpStatus.BAD_REQUEST, `Service ${service.name} does not have a duration for ${booking.vehicleDetails.carType}.`);
-//                 }
-//                 return total + service.duration[booking.vehicleDetails.carType];
-//             }, 0);
+            // Calculate total duration (including the extra 1 hour)
+            const services = await Service.find({ _id: { $in: booking.service_ids } });
+            const totalDuration = services.reduce((total, service) => {
+                if (!service.duration || !service.duration[booking.vehicleDetails.carType]) {
+                    throw new ApiError(httpStatus.BAD_REQUEST, `Service ${service.name} does not have a duration for ${booking.vehicleDetails.carType}.`);
+                }
+                return total + service.duration[booking.vehicleDetails.carType];
+            }, 0);
 
-//             const bookingEnd = new Date(bookingStart.getTime() + totalDuration * 60 * 1000);
-//             const extendedEnd = new Date(bookingEnd.getTime() + 1 * 60 * 60 * 1000);
+            const bookingEnd = new Date(bookingStart.getTime() + totalDuration * 60 * 1000);
+            const extendedEnd = new Date(bookingEnd.getTime() + 1 * 60 * 60 * 1000);
 
-//             // Generate time slots to release
-//             const slotsToRelease = [];
-//             for (let time = new Date(bookingStart); time <= extendedEnd; time.setMinutes(time.getMinutes() + 30)) {
-//                 slotsToRelease.push(formatAMPM(new Date(time)));
-//             }
+            // Generate time slots to release
+            const slotsToRelease = [];
+            for (let time = new Date(bookingStart); time <= extendedEnd; time.setMinutes(time.getMinutes() + 30)) {
+                slotsToRelease.push(formatAMPM(new Date(time)));
+            }
 
-//             // Update working hours: remove slots from unavailableSlots and add back to availableSlots
-//             workingHours.unavailableSlots = workingHours.unavailableSlots.filter(
-//                 (slot) => !slotsToRelease.includes(slot)
-//             );
-//             workingHours.availableSlots = [...workingHours.availableSlots, ...slotsToRelease];
+            // Update working hours: remove slots from unavailableSlots and add back to availableSlots
+            workingHours.unavailableSlots = workingHours.unavailableSlots.filter(
+                (slot) => !slotsToRelease.includes(slot)
+            );
+            workingHours.availableSlots = [...workingHours.availableSlots, ...slotsToRelease];
 
-//             // Ensure no duplicates in availableSlots
-//             workingHours.availableSlots = [...new Set(workingHours.availableSlots)];
-//             await workingHours.save();
-//         }
-//     }
+            // Ensure no duplicates in availableSlots
+            workingHours.availableSlots = [...new Set(workingHours.availableSlots)];
+            await workingHours.save();
+        }
+    }
 
-//     // Send email notification to client
-//     const clientEmailOptions = {
-//         from: process.env.EMAIL_USER,
-//         to: booking.clientDetails.email,
-//         subject: 'Booking Canceled',
-//         html: bookingCancellationTemplate(booking, canceledBy),
-//     };
+    // Send email notification to client
+    const clientEmailOptions = {
+        from: process.env.EMAIL_USER,
+        to: booking.clientDetails.email,
+        subject: 'Booking Canceled',
+        html: bookingCancellationTemplate(booking),
+    };
 
-//     try {
-//         await transporter.sendMail(clientEmailOptions);
-//         console.log('Client email sent successfully');
-//     } catch (error) {
-//         console.error('Failed to send client email:', error);
-//     }
+    try {
+        await transporter.sendMail(clientEmailOptions);
+        console.log('Client email sent successfully');
+    } catch (error) {
+        console.error('Failed to send client email:', error);
+    }
 
-//     return booking;
-// };
+    return booking;
+};
 
 module.exports = {
     createBooking,
@@ -519,4 +520,6 @@ module.exports = {
     deleteBookingById,
     assignUserToBooking,
     getAvailableSlots,
+    approveBooking,
+    cancelBooking,
 };

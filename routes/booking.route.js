@@ -360,12 +360,19 @@ router.get('/api/bookings', bookingController.getAllBookings);
 router.get('/api/bookings/:bookingId', validate(bookingValidation.getBookingSchema), bookingController.getBookingById);
 
 // Update a booking by ID
-router.patch('/api/bookings/:bookingId',  validate(bookingValidation.updateBookingSchema), bookingController.updateBookingById);
+router.patch('/api/bookings/:bookingId', validate(bookingValidation.updateBookingSchema), bookingController.updateBookingById);
 
 // Delete a booking by ID
 router.delete('/api/bookings/:bookingId', validate(bookingValidation.deleteBookingSchema), bookingController.deleteBookingById);
 
 // Assign a user to a booking
 router.patch('/api/bookings/:bookingId/assign/:userId', bookingController.assignUserToBooking);
+
+// Approve a booking
+router.patch('/api/bookings/:bookingId/approve', validate(bookingValidation.approveBooking), bookingController.approveBooking);
+
+// Cancel a booking
+router.patch('/api/bookings/:bookingId/cancel', validate(bookingValidation.cancelBooking), bookingController.cancelBooking);
+
 
 module.exports = router;

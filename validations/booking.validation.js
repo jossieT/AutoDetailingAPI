@@ -92,9 +92,26 @@ const deleteBookingSchema = {
     }),
 };
 
+const approveBooking = {
+    params: joi.object().keys({
+        bookingId: joi.string().hex().length(24).required(),
+    }),
+};
+
+const cancelBooking = {
+    params: joi.object().keys({
+        bookingId: joi.string().hex().length(24).required(),
+    }),
+    body: joi.object().keys({
+        canceledBy: joi.string().optional(),
+    }),
+};
+
 module.exports = {
     createBookingSchema,
     updateBookingSchema,
     getBookingSchema,
     deleteBookingSchema,
+    approveBooking,
+    cancelBooking,
 };
