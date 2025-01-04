@@ -17,13 +17,13 @@ const createServiceSchema = {
         duration: joi.object().keys({
             SUV: joi.number(),
             AUTO: joi.number(),
-        }).required(),
-        image: joi.string().uri(),
-        additionalServices: joi.array().items(joi.string()),
+        }).optional(),
+        image: joi.string().uri().optional(),
+        additionalServices: joi.array().items(joi.string()).optional(),
         features: joi.object().keys({
             en: joi.array().items(joi.string()),
             am: joi.array().items(joi.string()),
-        }),
+        }).optional(),
         available: joi.boolean(),
     }),
 };
@@ -41,12 +41,12 @@ const updateServiceSchema = {
         pricing: joi.object().keys({
             basePrice: joi.number(),
             maxPrice: joi.number(),
-    }).optional(),
+       }).optional(),
         duration: joi.object().keys({
-            SUV: joi.number(),
-            AUTO: joi.number(),
-        }),
-        image: joi.string().uri(),
+            SUV: joi.number().optional(),
+            AUTO: joi.number().optional(),
+        }).optional(),
+        image: joi.string().uri().optional(),
         additionalServices: joi.array().items(joi.string()),
         features: joi.object().keys({
             en: joi.array().items(joi.string()),
