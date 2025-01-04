@@ -323,7 +323,8 @@ const getAllBookings = async () => {
 const getBookingById = async (bookingId) => {
     const booking = await Booking.findById(bookingId)
         .populate('service_ids', 'name description basePrice') // Populate service details
-        .populate('assignedTo', 'firstName lastName email')
+        .populate('assignedTo', 'name hone email')
+        .populate('selectedAddOns', 'optionName additionalPrice description')
         .exec();
     if (!booking) {
         throw new ApiError(httpStatus.NOT_FOUND, 'Booking not found');

@@ -11,15 +11,9 @@ const createServiceSchema = {
             am: joi.string().required(),
         }).required(),
         pricing: joi.object().keys({
-            SUV: joi.object().keys({
                 basePrice: joi.number(),
                 maxPrice: joi.number(),
-            }),
-            AUTO: joi.object().keys({
-                basePrice: joi.number(),
-                maxPrice: joi.number(),
-            }),
-        }).required(),
+        }).optional(),
         duration: joi.object().keys({
             SUV: joi.number(),
             AUTO: joi.number(),
@@ -37,23 +31,17 @@ const createServiceSchema = {
 const updateServiceSchema = {
     body: joi.object().keys({
         name: joi.object().keys({
-            en: joi.string().required(),
-            am: joi.string().required(),
-        }).required(),
+            en: joi.string().optional(),
+            am: joi.string().optional(),
+        }).optional(),
         description: joi.object().keys({
-            en: joi.string().required(),
-            am: joi.string().required(),
-        }).required(),
+            en: joi.string().optional(),
+            am: joi.string().optional(),
+        }).optional(),
         pricing: joi.object().keys({
-            SUV: joi.object().keys({
-                basePrice: joi.number(),
-                maxPrice: joi.number(),
-            }),
-            AUTO: joi.object().keys({
-                basePrice: joi.number(),
-                maxPrice: joi.number(),
-            }),
-        }),
+            basePrice: joi.number(),
+            maxPrice: joi.number(),
+    }).optional(),
         duration: joi.object().keys({
             SUV: joi.number(),
             AUTO: joi.number(),

@@ -6,7 +6,7 @@ const addOnServiceSchema = new mongoose.Schema({
         am: { type: String, required: true }, // Amharic name
     }, // e.g., "Extra Wax Coating"
     additionalPrice: {
-        minBasePrice: { type: Number, required: true }, // Minimum base price for the add-on
+        minBasePrice: { type: Number }, // Minimum base price for the add-on
         maxPrice: { type: Number},     // Maximum price for the add-on
     },
     features: {

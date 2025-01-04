@@ -7,9 +7,9 @@ const createAddOnService = {
             am: joi.string().required(),
         }).required(),
         additionalPrice: joi.object().keys({
-            minBasePrice: joi.number().required(),
+            minBasePrice: joi.number().optional(),
             maxPrice: joi.number().optional(),
-        }).required(),
+        }).optional(),
         features: joi.object().keys({
             en: joi.array().items(joi.string()),
             am: joi.array().items(joi.string()),

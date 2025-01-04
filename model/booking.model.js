@@ -64,20 +64,16 @@ bookingSchema.pre('save', async function (next) {
         // Populate service_ids to fetch service details
         await this.populate('service_ids', 'pricing duration');
 
-        if (!this.vehicleDetails.carType) {
-            throw new Error('Car type is required to calculate total price');
-        }
+        // if (!this.vehicleDetails.carType) {
+        //     throw new Error('Car type is required to calculate total price');
+        // }
         // Calculate total price
         this.totalPrice = this.service_ids.reduce((total, service) => {
-            const priceForCarType = service.pricing[this.vehicleDetails.carType];
-            if (!priceForCarType) {
-                throw new Error(`Price not defined for car type: ${this.vehicleDetails.carType}`);
-            }
-            return total + priceForCarType.basePrice;
+            const servicePrice = service.pricing;
+            return total + servicePrice.basePrice;
         }, 0);
         
     }
-
     // Check and calculate total for add-ons
     if (this.selectedAddOns && this.isModified('selectedAddOns')) {
         // Populate selectedAddOns to fetch add-on details
@@ -88,7 +84,6 @@ bookingSchema.pre('save', async function (next) {
             const priceForCar = addOn.additionalPrice;
             return total + priceForCar.minBasePrice; // or minBasePrice based on requirement
         }, 0);
-
         // Add add-on price to the total price
         this.totalPrice += addOnPrice;
     }
