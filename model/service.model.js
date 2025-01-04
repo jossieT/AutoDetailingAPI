@@ -10,8 +10,9 @@ const serviceSchema = new mongoose.Schema({
         am: { type: String, required: true }, // Amharic description
     },
     pricing: {
-        basePrice: { type: Number}, // Base price for AUTO
-        maxPrice: { type: Number},  // Max price for AUTO
+        basePrice: { type: Number}, // Base price
+        maxPrice: { type: Number},  // Max price
+        fixedPrice: { type: Number}, // Fixed price
     },
     duration: {
         SUV: { type: Number}, // Duration for SUV (in hours)

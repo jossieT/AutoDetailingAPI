@@ -6,7 +6,7 @@ const httpStatus = require('http-status');
 const { parseAMPM, formatAMPM } = require('../helpers/time.formatter');
 const Service = require('../model/service.model');
 const transporter = require('../config/nodemailer');
-const { bookingConfirmationTemplate, staffNotificationTemplate, bookingCancellationTemplate,bookingApprovalTemplate  } = require('../utils/emailTemplates');
+const { bookingConfirmationTemplate, staffNotificationTemplate, bookingCancellationTemplate, bookingApprovalTemplate } = require('../utils/emailTemplates');
 const AddOnService = require('../model/addon.service.model');
 const calculateTotalPrice = (services) => {
     // Use reduce to sum up all service base prices
@@ -360,16 +360,48 @@ const deleteBookingById = async (bookingId) => {
     if (booking.appointmentDate && booking.serviceStartingTime && booking.service_ids) {
         const workingHours = await WorkingHours.findOne({ date: new Date(booking.appointmentDate) });
         if (workingHours) {
-            const bookingStart = parseAMPM(booking.serviceStartingTime);
 
+            const bookingStart = parseAMPM(booking.serviceStartingTime);
             // Calculate total duration (including the extra 1 hour)
-            const services = await Service.find({ _id: { $in: booking.service_ids } });
-            const totalDuration = services.reduce((total, service) => {
+            //const services = await Service.find({ _id: { $in: booking.service_ids } });
+            const services = await Service.find({ _id: { $in: booking.service_ids } }, 'duration');
+            const addOns = await AddOnService.find({ _id: { $in: booking.selectedAddOns } }, 'duration');
+
+            let totalDuration = 0;
+            const serviceDuration = services.reduce((total, service) => {
                 if (!service.duration || !service.duration[booking.vehicleDetails.carType]) {
                     throw new ApiError(httpStatus.BAD_REQUEST, `Service ${service.name} does not have a duration for ${booking.vehicleDetails.carType}.`);
                 }
                 return total + service.duration[booking.vehicleDetails.carType];
             }, 0);
+
+            totalDuration += serviceDuration;
+
+            const addOnDuration = addOns.reduce((total, addOn) => {
+                if (!addOn.duration) {
+                    throw new ApiError(httpStatus.BAD_REQUEST, `Add-On ${addOn.name} does not have a duration.`);
+                }
+                return total + addOn.duration;
+            }, 0);
+
+            if (booking.selectedAddOns) {
+                totalDuration += addOnDuration;
+            }
+
+
+
+
+
+            // const totalDuration = services.reduce((total, service) => {
+            //     if (!service.duration || !service.duration[booking.vehicleDetails.carType]) {
+            //         throw new ApiError(httpStatus.BAD_REQUEST, `Service ${service.name} does not have a duration for ${booking.vehicleDetails.carType}.`);
+            //     }
+            //     return total + service.duration[booking.vehicleDetails.carType];
+            // }, 0);
+
+
+
+
 
             const bookingEnd = new Date(bookingStart.getTime() + totalDuration * 60 * 1000);
             const extendedEnd = new Date(bookingEnd.getTime() + 1 * 60 * 60 * 1000);
@@ -462,16 +494,48 @@ const cancelBooking = async (bookingId) => {
     if (booking.appointmentDate && booking.serviceStartingTime && booking.service_ids) {
         const workingHours = await WorkingHours.findOne({ date: new Date(booking.appointmentDate) });
         if (workingHours) {
-            const bookingStart = parseAMPM(booking.serviceStartingTime);
 
+            const bookingStart = parseAMPM(booking.serviceStartingTime);
             // Calculate total duration (including the extra 1 hour)
-            const services = await Service.find({ _id: { $in: booking.service_ids } });
-            const totalDuration = services.reduce((total, service) => {
+            //const services = await Service.find({ _id: { $in: booking.service_ids } });
+            const services = await Service.find({ _id: { $in: booking.service_ids } }, 'duration');
+            const addOns = await AddOnService.find({ _id: { $in: booking.selectedAddOns } }, 'duration');
+
+            let totalDuration = 0;
+            const serviceDuration = services.reduce((total, service) => {
                 if (!service.duration || !service.duration[booking.vehicleDetails.carType]) {
                     throw new ApiError(httpStatus.BAD_REQUEST, `Service ${service.name} does not have a duration for ${booking.vehicleDetails.carType}.`);
                 }
                 return total + service.duration[booking.vehicleDetails.carType];
             }, 0);
+
+            totalDuration += serviceDuration;
+
+            const addOnDuration = addOns.reduce((total, addOn) => {
+                if (!addOn.duration) {
+                    throw new ApiError(httpStatus.BAD_REQUEST, `Add-On ${addOn.name} does not have a duration.`);
+                }
+                return total + addOn.duration;
+            }, 0);
+
+            if (booking.selectedAddOns) {
+                totalDuration += addOnDuration;
+            }
+
+
+
+
+
+            // const totalDuration = services.reduce((total, service) => {
+            //     if (!service.duration || !service.duration[booking.vehicleDetails.carType]) {
+            //         throw new ApiError(httpStatus.BAD_REQUEST, `Service ${service.name} does not have a duration for ${booking.vehicleDetails.carType}.`);
+            //     }
+            //     return total + service.duration[booking.vehicleDetails.carType];
+            // }, 0);
+
+
+
+
 
             const bookingEnd = new Date(bookingStart.getTime() + totalDuration * 60 * 1000);
             const extendedEnd = new Date(bookingEnd.getTime() + 1 * 60 * 60 * 1000);

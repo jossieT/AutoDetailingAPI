@@ -8,6 +8,7 @@ const addOnServiceSchema = new mongoose.Schema({
     additionalPrice: {
         minBasePrice: { type: Number }, // Minimum base price for the add-on
         maxPrice: { type: Number},     // Maximum price for the add-on
+        fixedPrice: { type: Number}, // Fixed price for the add-on
     },
     features: {
         en: [{ type: String }], // Features in English

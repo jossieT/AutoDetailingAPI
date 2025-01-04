@@ -13,6 +13,7 @@ const createServiceSchema = {
         pricing: joi.object().keys({
                 basePrice: joi.number(),
                 maxPrice: joi.number(),
+                fixedPrice: joi.number(),
         }).optional(),
         duration: joi.object().keys({
             SUV: joi.number(),
