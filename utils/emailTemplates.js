@@ -21,6 +21,7 @@ const bookingConfirmationTemplate = (booking, serviceInfo, bookingEndTime, addOn
     <p>Best regards,</p>
     <p><strong>Swift Addis Mobile Car Detailing Team</strong></p>
     <p>📞 <em>0987963123</em></p>
+    <p>📞 <em>0987268123</em></p>
     <p>📞 <em>0995090852</em></p>
     <p>📧 <em>info@swiftaddisdetailing.com</em></p>
 `;
@@ -92,6 +93,7 @@ const bookingApprovalTemplate = (booking, serviceInfo, bookingEndTime, addOns = 
     <p>Best regards,</p>
     <p><strong>Swift Addis Mobile Car Detailing Team</strong></p>
     <p>📞 <em>0987963123</em></p>
+    <p>📞 <em>0987268123</em></p>
     <p>📞 <em>0995090852</em></p>
     <p>📧 <em>info@swiftaddisdetailing.com</em></p>
 `;
@@ -127,7 +129,9 @@ const bookingCancellationTemplate = (booking, serviceInfo, bookingEndTime, addOn
     <p>Best regards,</p>
     <p><strong>Swift Addis Mobile Car Detailing Team</strong></p>
     <p>📞 <em>0987963123</em></p>
+    <p>📞 <em>0987268123</em></p>
     <p>📞 <em>0995090852</em></p>
+    
     <p>📧 <em>info@swiftaddisdetailing.com</em></p>
 `;
 }
