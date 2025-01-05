@@ -454,7 +454,7 @@ const assignUserToBooking = async (bookingId, userId) => {
 // Approve a booking
 const approveBooking = async (bookingId) => {
     const booking = await Booking.findById(bookingId);
-    console.log(booking);
+
     if (!booking) {
         throw new ApiError(httpStatus.NOT_FOUND, 'Booking not found');
     }
@@ -462,12 +462,15 @@ const approveBooking = async (bookingId) => {
     booking.status = 'Confirmed';
     await booking.save();
 
+    const serviceInfo = await Service.find({ _id: { $in: booking.service_ids } });
+    const addOnInfo = await AddOnService.find({ _id: { $in: booking.selectedAddOns } }).lean();
+
     // Send email notification to client
     const clientEmailOptions = {
         from: process.env.EMAIL_USER,
         to: booking.clientDetails.email,
-        subject: 'Booking Confirmed',
-        html: bookingApprovalTemplate(booking),
+        subject: 'Your Appointment is Confirmed with Swift Addis Mobile Car Detailing!',
+        html: bookingApprovalTemplate(booking, serviceInfo, addOnInfo),
     };
 
     try {
@@ -558,12 +561,15 @@ const cancelBooking = async (bookingId) => {
         }
     }
 
+    const serviceInfo = await Service.find({ _id: { $in: booking.service_ids } });
+    const addOnInfo = await AddOnService.find({ _id: { $in: booking.selectedAddOns } }).lean();
+
     // Send email notification to client
     const clientEmailOptions = {
         from: process.env.EMAIL_USER,
         to: booking.clientDetails.email,
-        subject: 'Booking Canceled',
-        html: bookingCancellationTemplate(booking),
+        subject: ' Update Regarding Your Booking Request with Swift Addis',
+        html: bookingCancellationTemplate(booking, serviceInfo, addOnInfo),
     };
 
     try {
