@@ -36,7 +36,7 @@ const login = async (email, password, ipAddr) => {
   
   const promises = [slowerBruteLimiter.consume(ipAddr), emailBruteLimiter.consume(email),emailIpBruteLimiter.consume(`${email}_${ipAddr}`)];
   const user = await userService.getUserByEmail(email);
-
+  
   if (!user || !(await user.isPasswordMatch(password))) {
     // user && promises.push([emailIpBruteLimiter.consume(`${email}_${ipAddr}`), 
     //   emailBruteLimiter.consume(email)]);

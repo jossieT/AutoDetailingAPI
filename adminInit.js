@@ -1,4 +1,4 @@
-const bcrypt = require('bcryptjs');
+//const bcrypt = require('bcrypt');
 const User = require('./model/user.model'); // Adjust the path to your User model
 
 /**
@@ -26,13 +26,13 @@ const createInitialAdmin = async () => {
         }
 
         // Hash the admin password
-        const hashedPassword = await bcrypt.hash(adminPassword, 10);
+        //const hashedPassword = await bcrypt.hash(adminPassword, 8);
 
         // Create the admin account
         const admin = new User({
             name: adminName,
             email: adminEmail,
-            password: hashedPassword,
+            password: adminPassword,
             role: 'admin',
         });
 
