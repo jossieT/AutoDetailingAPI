@@ -582,6 +582,18 @@ const cancelBooking = async (bookingId) => {
     return booking;
 };
 
+const markAsCompleted = async (bookingId) => {
+    const booking = await Booking.findById(bookingId);
+    if (!booking) {
+        throw new ApiError(httpStatus.NOT_FOUND, 'Booking not found');
+    }
+
+    booking.status = 'Completed';
+    await booking.save();
+
+    return booking;
+};
+
 module.exports = {
     createBooking,
     getAllBookings,
@@ -592,4 +604,5 @@ module.exports = {
     getAvailableSlots,
     approveBooking,
     cancelBooking,
+    markAsCompleted
 };

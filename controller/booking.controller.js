@@ -76,6 +76,10 @@ const cancelBooking = catchAsync(async (req, res) => {
     res.status(200).json({ message: 'Booking canceled successfully', data: booking });
 });
 
+const markAsCompleted = catchAsync(async (req, res) => {
+    const booking = await bookingService.markAsCompleted(req.params.bookingId);
+    res.status(200).json({ message: 'Booking marked as completed successfully', data: booking });
+});
 
 module.exports = {
     createBooking,
@@ -86,5 +90,6 @@ module.exports = {
     assignUserToBooking,
     getAvailableSlots,
     approveBooking,
-    cancelBooking
+    cancelBooking,
+    markAsCompleted
 };

@@ -346,6 +346,30 @@ const bookingValidation = require('../validations/booking.validation');
  *           example: "2024-12-18T11:20:30Z"
  */
 
+/**
+ * @swagger
+ * /api/bookings/{bookingId}/complete:
+ *   patch:
+ *     summary: Mark a booking as completed
+ *     tags: [Booking]
+ *     parameters:
+ *       - in: path
+ *         name: bookingId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Booking ID
+ *     responses:
+ *       200:
+ *         description: Booking marked as completed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Booking'
+ *       404:
+ *         description: Booking not found
+ */
+
 
 // Route to get available slots
 router.get('/api/available-slots', bookingController.getAvailableSlots);
@@ -373,6 +397,9 @@ router.patch('/api/bookings/:bookingId/approve', validate(bookingValidation.appr
 
 // Cancel a booking
 router.patch('/api/bookings/:bookingId/cancel', validate(bookingValidation.cancelBooking), bookingController.cancelBooking);
+
+// Mark a booking as completed
+router.patch('/api/bookings/:bookingId/complete', validate(bookingValidation.markAsCompleted), bookingController.markAsCompleted);
 
 
 module.exports = router;

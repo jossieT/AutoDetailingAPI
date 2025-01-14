@@ -107,6 +107,12 @@ const cancelBooking = {
     }),
 };
 
+const markAsCompleted = {
+    params: joi.object().keys({
+        bookingId: joi.string().hex().length(24).required(),
+    }),
+};
+
 module.exports = {
     createBookingSchema,
     updateBookingSchema,
@@ -114,4 +120,5 @@ module.exports = {
     deleteBookingSchema,
     approveBooking,
     cancelBooking,
+    markAsCompleted
 };
