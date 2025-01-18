@@ -6,7 +6,7 @@ const httpStatus = require('http-status');
 const { parseAMPM, formatAMPM } = require('../helpers/time.formatter');
 const Service = require('../model/service.model');
 const transporter = require('../config/nodemailer');
-const { bookingConfirmationTemplate, staffNotificationTemplate, bookingCancellationTemplate, bookingApprovalTemplate } = require('../utils/emailTemplates');
+const { bookingConfirmationTemplate, staffNotificationTemplate, bookingCancellationTemplate, bookingApprovalTemplate, bookingCompletedTemplate } = require('../utils/emailTemplates');
 const AddOnService = require('../model/addon.service.model');
 const calculateTotalPrice = (services) => {
     // Use reduce to sum up all service base prices
@@ -459,6 +459,17 @@ const approveBooking = async (bookingId) => {
         throw new ApiError(httpStatus.NOT_FOUND, 'Booking not found');
     }
 
+    if(booking.status === 'Confirmed') {
+        throw new ApiError(httpStatus.BAD_REQUEST, 'Booking is already approved.');
+    }
+
+    if(booking.status === 'Completed') {
+        throw new ApiError(httpStatus.BAD_REQUEST, 'Completed Bookings cannot be changed.');
+    }
+    if(booking.status === 'Canceled') {
+        throw new ApiError(httpStatus.BAD_REQUEST, 'Canceled Bookings cannot be approved.');
+    }
+
     booking.status = 'Confirmed';
     await booking.save();
 
@@ -489,6 +500,19 @@ const cancelBooking = async (bookingId) => {
     if (!booking) {
         throw new ApiError(httpStatus.NOT_FOUND, 'Booking not found');
     }
+
+    if(booking.status === 'Canceled') {
+        throw new ApiError(httpStatus.BAD_REQUEST, 'Booking is already canceled.');
+    }
+
+    if(booking.status === 'Completed') {
+        throw new ApiError(httpStatus.BAD_REQUEST, 'Completed Bookings cannot be changed.');
+    }
+
+    if(booking.status === 'confirmed') {
+        throw new ApiError(httpStatus.BAD_REQUEST, 'Approved Bookings cannot be canceled.');
+    }
+
 
     booking.status = 'Canceled';
     await booking.save();
@@ -588,8 +612,39 @@ const markAsCompleted = async (bookingId) => {
         throw new ApiError(httpStatus.NOT_FOUND, 'Booking not found');
     }
 
+    if(booking.status === 'Completed') {
+        throw new ApiError(httpStatus.BAD_REQUEST, 'Booking is already marked as completed.');
+    }
+
+    if(booking.status === 'pending') {
+        throw new ApiError(httpStatus.BAD_REQUEST, 'Booking is not yet confirmed.');
+    }
+
+    if(booking.status === 'Canceled') {
+        throw new ApiError(httpStatus.BAD_REQUEST, 'Canceled Bookings cannot be changed to completed.');
+    }
+
+
     booking.status = 'Completed';
     await booking.save();
+
+    const serviceInfo = await Service.find({ _id: { $in: booking.service_ids } });
+    //const addOnInfo = await AddOnService.find({ _id: { $in: booking.selectedAddOns } }).lean();
+
+    // Send email notification to client
+    const clientEmailOptions = {
+        from: process.env.EMAIL_USER,
+        to: booking.clientDetails.email,
+        subject: 'Thank You for Choosing Swift Addis Mobile Car Detailing!',
+        html: bookingCompletedTemplate(booking, serviceInfo),
+    };
+
+    try {
+        await transporter.sendMail(clientEmailOptions);
+        console.log('Client email sent successfully');
+    } catch (error) {
+        console.error('Failed to send client email:', error);
+    }
 
     return booking;
 };

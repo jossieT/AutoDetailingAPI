@@ -8,8 +8,7 @@ const bookingConfirmationTemplate = (booking, serviceInfo, bookingEndTime, addOn
         <li><strong>Date:</strong> ${booking.appointmentDate}</li>
         <li><strong>Time:</strong> ${booking.serviceStartingTime} - ${bookingEndTime}</li>
         <li><strong>Service Package:</strong> ${serviceInfo.map(service => service.name.en).join(', ')}</li>
-        ${
-            addOns.length > 0
+        ${addOns.length > 0
             ? `<li><strong>Add-On Service:</strong> ${addOns.map(addOn => addOn.optionName.en).join(', ')}</li>`
             : ''
         }
@@ -64,7 +63,7 @@ const staffNotificationTemplate = (booking, staff, serviceInfo, bookingEndTime, 
 };
 
 const bookingApprovalTemplate = (booking, serviceInfo, bookingEndTime, addOns = []) => {
-    
+
     return `
     <p><strong>Dear ${booking.clientDetails.firstName} ${booking.clientDetails.lastName},</strong></p>
     <p>Thank you for choosing Swift Addis Mobile Car Detailing! We are happy to confirm your appointment.</p>
@@ -133,9 +132,32 @@ const bookingCancellationTemplate = (booking, serviceInfo, bookingEndTime, addOn
 `;
 }
 
+const bookingCompletedTemplate = (booking, serviceInfo) => {
+
+    return `
+    <p><strong>Dear ${booking.clientDetails.firstName} ${booking.clientDetails.lastName},</strong></p>
+    <p>Thank you for allowing Swift Addis Mobile Car Detailing to care for your vehicle!
+     We hope you are delighted with the results of our ${serviceInfo.map(service => service.name.en).join(', ')}. 
+     It was our pleasure to serve you, and we appreciate the trust you placed in us.</p>
+    
+    <p>We’re constantly striving to improve and grow, and your feedback would mean the world to us. Kindly take a moment to rate our services on Google Maps using the link below:</p><br>
+    
+    <a href="https://maps.app.goo.gl/a3BhtZgohKKMYkWf7?g_st=com.google.maps.preview.copy" target="_blank">Rate Us on Google Maps</a><br><br>
+    
+    <p>If you have any additional feedback or questions, don’t hesitate to reach out. We look forward to serving you again in the future!</p>
+    <p><strong>Swift Addis Mobile Car Detailing Team</strong></p>
+    <p>Best regards,</p>
+    <p>Thank you once again for choosing Swift Addis Mobile Car Detailing.</p>
+    <p>📞 <em>0987963123</em></p>
+    <p>📞 <em>0995090852</em></p>
+    <p>Website: <em>http://www.swiftaddisdetailing.com</em></p>
+`;
+}
+
 module.exports = {
     bookingConfirmationTemplate,
     staffNotificationTemplate,
     bookingApprovalTemplate,
-    bookingCancellationTemplate
+    bookingCancellationTemplate,
+    bookingCompletedTemplate
 };
