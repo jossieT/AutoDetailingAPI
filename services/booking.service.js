@@ -509,7 +509,7 @@ const cancelBooking = async (bookingId) => {
         throw new ApiError(httpStatus.BAD_REQUEST, 'Completed Bookings cannot be changed.');
     }
 
-    if(booking.status === 'confirmed') {
+    if(booking.status === 'Confirmed') {
         throw new ApiError(httpStatus.BAD_REQUEST, 'Approved Bookings cannot be canceled.');
     }
 
@@ -616,7 +616,7 @@ const markAsCompleted = async (bookingId) => {
         throw new ApiError(httpStatus.BAD_REQUEST, 'Booking is already marked as completed.');
     }
 
-    if(booking.status === 'pending') {
+    if(booking.status === 'Pending') {
         throw new ApiError(httpStatus.BAD_REQUEST, 'Booking is not yet confirmed.');
     }
 
