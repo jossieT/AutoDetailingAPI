@@ -1,11 +1,39 @@
 const mongoose = require('mongoose');
 
 const dayOffSchema = new mongoose.Schema({
-    date: { type: Date, required: true, unique: true }, // Day off date
-    reason: { type: String }, // Reason for day off (e.g., "Weekend", "Holiday", "Staff-Initiated")
-    times: [String], // Specific times (e.g., ["09:00", "11:00"] for partial day off)
-    createdAt: { type: Date, default: Date.now },
-    updatedAt: { type: Date, default: Date.now },
+    date: { 
+        type: Date, 
+        required: true, 
+        unique: true 
+    },
+    reason: { 
+        type: String,
+        required: true
+    },
+    times: {
+        type: [String],
+        default: [],
+        validate: {
+            validator: function(times) {
+                // If times array is empty, it's considered a full day off
+                return true;
+            }
+        }
+    },
+    createdAt: { 
+        type: Date, 
+        default: Date.now 
+    },
+    updatedAt: { 
+        type: Date, 
+        default: Date.now 
+    }
+});
+
+// Update the updatedAt timestamp before saving
+dayOffSchema.pre('save', function(next) {
+    this.updatedAt = Date.now();
+    next();
 });
 
 module.exports = mongoose.model('DayOff', dayOffSchema);
