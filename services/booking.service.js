@@ -509,9 +509,6 @@ const cancelBooking = async (bookingId) => {
         throw new ApiError(httpStatus.BAD_REQUEST, 'Completed Bookings cannot be changed.');
     }
 
-    if(booking.status === 'Confirmed') {
-        throw new ApiError(httpStatus.BAD_REQUEST, 'Approved Bookings cannot be canceled.');
-    }
 
 
     booking.status = 'Canceled';
