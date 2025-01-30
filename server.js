@@ -10,6 +10,7 @@ const dayOffRouter = require('./routes/day-off.route');
 const staffRouter = require('./routes/staff.route');
 const addOnRoutes = require('./routes/addon.service.route');
 const blogRoutes = require('./routes/blog.routes');
+const profileRoutes = require('./routes/profile.route');
 
 const { errorHandler, errorConverter } = require('./middlewares/error');
 const { ApiError } = require('./utils/ApiError');
@@ -90,6 +91,7 @@ app.use(teamMemberRouter);
 app.use(dayOffRouter);
 app.use(staffRouter);
 app.use(addOnRoutes);
+app.use(profileRoutes);
 app.use('/api/blogs', blogRoutes);
 app.use(errorConverter);
 app.use(errorHandler);
