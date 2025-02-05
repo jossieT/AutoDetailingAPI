@@ -5,11 +5,11 @@ const createServiceSchema = {
         name: joi.object().keys({
             en: joi.string().required(),
             am: joi.string().required(),
-        }).required(),
+        }),
         description: joi.object().keys({
             en: joi.string().required(),
             am: joi.string().required(),
-        }).required(),
+        }),
         pricing: joi.object().keys({
                 basePrice: joi.number(),
                 maxPrice: joi.number(),

@@ -14,7 +14,7 @@ const createAddOnService = {
         features: joi.object().keys({
             en: joi.array().items(joi.string()),
             am: joi.array().items(joi.string()),
-        }),
+        }).optional(),
         description: joi.object().keys({
             en: joi.string().required(),
             am: joi.string().required(),

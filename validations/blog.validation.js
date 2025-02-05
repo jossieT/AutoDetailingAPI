@@ -4,7 +4,7 @@ const createBlogSchema = {
     body: joi.object().keys({
         title: joi.string().required(),
         content: joi.string().required(),
-        author: joi.string().required(), // Assuming author is a user ID
+        image: joi.string().allow('', null), // Allow image URL to be optional
     }),
 };
 
@@ -12,7 +12,7 @@ const updateBlogSchema = {
     body: joi.object().keys({
         title: joi.string(),
         content: joi.string(),
-        author: joi.string(), // Assuming author is a user ID
+        image: joi.string().allow('', null),
     }),
     params: joi.object().keys({
         id: joi.string().required(), // Assuming id is a blog ID

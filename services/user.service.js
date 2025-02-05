@@ -70,11 +70,20 @@ const updateProfile = async (userId, updateBody) => {
     return userWithoutPassword;
 };
 
+const findAdminUser = async () => {
+    const adminUser = await User.findOne({ role: 'admin' });
+    if (!adminUser) {
+        throw new ApiError(httpStatus.NOT_FOUND, 'No admin user found in the system');
+    }
+    return adminUser;
+};
+
 module.exports = {
     createUser,
     getUser,
     getUserByEmail,
     getUserById,
     getProfile,
-    updateProfile
+    updateProfile,
+    findAdminUser,
 }
