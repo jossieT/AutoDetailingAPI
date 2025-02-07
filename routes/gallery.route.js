@@ -26,8 +26,14 @@ const router = express.Router();
  *           type: string
  *           description: URL of the gallery image
  *         description:
- *           type: string
- *           description: Optional description of the image
+ *           type: object
+ *           properties:
+ *             en:
+ *               type: string
+ *               description: English description
+ *             am:
+ *               type: string
+ *               description: Amharic description
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -53,7 +59,9 @@ const router = express.Router();
  *               image:
  *                 type: string
  *                 format: binary
- *               description:
+ *               description_en:
+ *                 type: string
+ *               description_am:
  *                 type: string
  *     responses:
  *       201:
@@ -116,7 +124,9 @@ const router = express.Router();
  *               image:
  *                 type: string
  *                 format: binary
- *               description:
+ *               description_en:
+ *                 type: string
+ *               description_am:
  *                 type: string
  *     responses:
  *       200:
@@ -149,7 +159,7 @@ const router = express.Router();
 // Create a new gallery entry (admin only)
 router.post('/api/gallery', 
     uploadGalleryImages.single('image'),
-    validate(galleryValidation.createGallerySchema), 
+    //validate(galleryValidation.createGallerySchema), 
     galleryController.createGalleryEntry
 );
 

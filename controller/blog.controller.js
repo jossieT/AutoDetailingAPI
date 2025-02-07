@@ -9,11 +9,22 @@ const createBlog = catchAsync(async (req, res) => {
     if (req.file) {
         uploadedImage = req.file.path; // Cloudinary URL
         req.body.image = uploadedImage;
-    } else if (req.body.image) {
-        uploadedImage = req.body.image;
     }
+
+    // Structure the localized content
+    const blogData = {
+        title: {
+            en: req.body['title[en]'],
+            am: req.body['title[am]']
+        },
+        content: {
+            en: req.body['content[en]'],
+            am: req.body['content[am]']
+        },
+        image: req.body.image
+    };
     
-    // Find admin user
+    // Find admin user and set as author
     const adminUser = await userService.findAdminUser();
     if (!adminUser) {
         return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
@@ -21,11 +32,9 @@ const createBlog = catchAsync(async (req, res) => {
             message: 'Admin user not found'
         });
     }
+    blogData.author = adminUser._id;
     
-    // Set author as admin
-    req.body.author = adminUser._id;
-    
-    const blog = await blogService.createBlog(req.body);
+    const blog = await blogService.createBlog(blogData);
     res.status(httpStatus.CREATED).json({
         status: 'success',
         data: blog
@@ -42,12 +51,6 @@ const getAllBlogs = catchAsync(async (req, res) => {
 
 const getBlogById = catchAsync(async (req, res) => {
     const blog = await blogService.getBlogById(req.params.id);
-    if (!blog) {
-        return res.status(httpStatus.NOT_FOUND).json({
-            status: 'error',
-            message: 'Blog not found'
-        });
-    }
     res.status(httpStatus.OK).json({
         status: 'success',
         data: blog
@@ -58,21 +61,30 @@ const updateBlogById = catchAsync(async (req, res) => {
     // Handle image upload for updates
     if (req.file) {
         req.body.image = req.file.path;
-    } else if (!req.body.image) {
-        // Keep existing image if no new image is provided
-        const existingBlog = await blogService.getBlogById(req.params.id);
-        if (existingBlog) {
-            req.body.image = existingBlog.image;
-        }
     }
 
-    const blog = await blogService.updateBlogById(req.params.id, req.body);
-    if (!blog) {
-        return res.status(httpStatus.NOT_FOUND).json({
-            status: 'error',
-            message: 'Blog not found'
-        });
+    // Structure the localized content for update
+    const updateData = {};
+    
+    if (req.body['title[en]'] || req.body['title[am]']) {
+        updateData.title = {
+            ...(req.body['title[en]'] && { en: req.body['title[en]'] }),
+            ...(req.body['title[am]'] && { am: req.body['title[am]'] })
+        };
     }
+    
+    if (req.body['content[en]'] || req.body['content[am]']) {
+        updateData.content = {
+            ...(req.body['content[en]'] && { en: req.body['content[en]'] }),
+            ...(req.body['content[am]'] && { am: req.body['content[am]'] })
+        };
+    }
+
+    if (req.body.image) {
+        updateData.image = req.body.image;
+    }
+
+    const blog = await blogService.updateBlogById(req.params.id, updateData);
     res.status(httpStatus.OK).json({
         status: 'success',
         data: blog
@@ -80,17 +92,8 @@ const updateBlogById = catchAsync(async (req, res) => {
 });
 
 const deleteBlogById = catchAsync(async (req, res) => {
-    const blog = await blogService.deleteBlogById(req.params.id);
-    if (!blog) {
-        return res.status(httpStatus.NOT_FOUND).json({
-            status: 'error',
-            message: 'Blog not found'
-        });
-    }
-    res.status(httpStatus.OK).json({
-        status: 'success',
-        message: 'Blog deleted successfully'
-    });
+    await blogService.deleteBlogById(req.params.id);
+    res.status(httpStatus.NO_CONTENT).send();
 });
 
 module.exports = {

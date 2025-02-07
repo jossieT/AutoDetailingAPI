@@ -2,32 +2,36 @@ const joi = require('joi');
 
 const createBlogSchema = {
     body: joi.object().keys({
-        title: joi.string().required(),
-        content: joi.string().required(),
+        'title.en': joi.string().required(),
+        'title.am': joi.string().required(),
+        'content.en': joi.string().required(),
+        'content.am': joi.string().required(),
         image: joi.string().allow('', null), // Allow image URL to be optional
     }),
 };
 
 const updateBlogSchema = {
-    body: joi.object().keys({
-        title: joi.string(),
-        content: joi.string(),
-        image: joi.string().allow('', null),
-    }),
     params: joi.object().keys({
-        id: joi.string().required(), // Assuming id is a blog ID
+        id: joi.string().hex().length(24).required(),
+    }),
+    body: joi.object().keys({
+        'title.en': joi.string(),
+        'title.am': joi.string(),
+        'content.en': joi.string(),
+        'content.am': joi.string(),
+        image: joi.string().allow('', null),
     }),
 };
 
 const getBlogSchema = {
     params: joi.object().keys({
-        id: joi.string().required(), // Assuming id is a blog ID
+        id: joi.string().hex().length(24).required(),
     }),
 };
 
 const deleteBlogSchema = {
     params: joi.object().keys({
-        id: joi.string().required(), // Assuming id is a blog ID
+        id: joi.string().hex().length(24).required(),
     }),
 };
 
