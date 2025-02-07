@@ -11,18 +11,6 @@ const createBlog = catchAsync(async (req, res) => {
         req.body.image = uploadedImage;
     }
 
-    // Structure the localized content
-    const blogData = {
-        title: {
-            en: req.body['title[en]'],
-            am: req.body['title[am]']
-        },
-        content: {
-            en: req.body['content[en]'],
-            am: req.body['content[am]']
-        },
-        image: req.body.image
-    };
     
     // Find admin user and set as author
     const adminUser = await userService.findAdminUser();
@@ -32,9 +20,9 @@ const createBlog = catchAsync(async (req, res) => {
             message: 'Admin user not found'
         });
     }
-    blogData.author = adminUser._id;
+    req.body.author = adminUser._id;
     
-    const blog = await blogService.createBlog(blogData);
+    const blog = await blogService.createBlog(req.body);
     res.status(httpStatus.CREATED).json({
         status: 'success',
         data: blog

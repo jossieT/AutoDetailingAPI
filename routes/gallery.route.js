@@ -159,13 +159,13 @@ const router = express.Router();
 // Create a new gallery entry (admin only)
 router.post('/api/gallery', 
     uploadGalleryImages.single('image'),
-    //validate(galleryValidation.createGallerySchema), 
+    validate(galleryValidation.createGallerySchema), 
     galleryController.createGalleryEntry
 );
 
 // Get all gallery entries (public)
 router.get('/api/gallery', 
-    validate(galleryValidation.getGallerySchema), 
+    //validate(galleryValidation.getGallerySchema), 
     galleryController.getAllGalleryEntries
 );
 
