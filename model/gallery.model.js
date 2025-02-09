@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const gallerySchema = new mongoose.Schema({
-    imageUrl: { type: String },
+    image: { type: String },
     description: {
         en: { type: String }, // English description
         am: { type: String }, // Amharic description

@@ -200,6 +200,6 @@ router.put('/:id',
 );
 
 // Delete a blog post (admin only)
-router.delete('/:id', authenticate, adminAuth, validate(blogValidation.deleteBlogSchema), blogController.deleteBlogById);
+router.delete('/:id',  validate(blogValidation.deleteBlogSchema), blogController.deleteBlogById);
 
 module.exports = router;

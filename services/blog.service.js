@@ -56,7 +56,7 @@ const deleteBlogById = async (id) => {
     if (!blog) {
         throw new ApiError(httpStatus.NOT_FOUND, 'Blog not found');
     }
-    return await blog.remove();
+    return await blog.deleteOne({ _id: id });
 };
 
 module.exports = {

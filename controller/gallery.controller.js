@@ -8,7 +8,7 @@ const createGalleryEntry = catchAsync(async (req, res) => {
     let uploadedImage = null;
     if (req.file) {
         uploadedImage = req.file.path; // Cloudinary URL is in file.path
-        req.body.imageUrl = uploadedImage;
+        req.body.image = uploadedImage;
     } else {
         return res.status(httpStatus.BAD_REQUEST).json({
             status: 'error',

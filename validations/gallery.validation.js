@@ -2,10 +2,10 @@ const joi = require('joi');
 
 const createGallerySchema = {
     body: joi.object().keys({
-         // Will be set by controller
+        // Will be set by controller
         'description.en': joi.string().required(),
         'description.am': joi.string().required(),
-        image: joi.string().allow('', null), 
+        image: joi.string().allow('', null),
     }),
 };
 
@@ -16,7 +16,7 @@ const updateGallerySchema = {
     body: joi.object().keys({
         'description.en': joi.string().required(),
         'description.am': joi.string().required(),
-        image: joi.string().allow('', null), 
+        image: joi.string().allow('', null),
     }),
 };
 
