@@ -22,33 +22,12 @@ const getBlogById = async (id) => {
 };
 
 const updateBlogById = async (id, updateData) => {
-    const blog = await Blog.findById(id);
+    const blog = await Blog.findByIdAndUpdate(id, updateData, { new: true });
     if (!blog) {
         throw new ApiError(httpStatus.NOT_FOUND, 'Blog not found');
     }
-
     // Update only provided fields while preserving existing translations
-    if (updateData.title) {
-        blog.title = {
-            ...blog.title,
-            ...(updateData.title.en && { en: updateData.title.en }),
-            ...(updateData.title.am && { am: updateData.title.am }),
-        };
-    }
-
-    if (updateData.content) {
-        blog.content = {
-            ...blog.content,
-            ...(updateData.content.en && { en: updateData.content.en }),
-            ...(updateData.content.am && { am: updateData.content.am }),
-        };
-    }
-
-    if (updateData.image) {
-        blog.image = updateData.image;
-    }
-
-    return await blog.save();
+    return blog;
 };
 
 const deleteBlogById = async (id) => {

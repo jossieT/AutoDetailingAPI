@@ -49,30 +49,17 @@ const updateBlogById = catchAsync(async (req, res) => {
     // Handle image upload for updates
     if (req.file) {
         req.body.image = req.file.path;
-    }
+    } else if (!req.body.image) {
+            // Keep existing image if no new image is provided
+            const existingBlog = await blogService.getBlogById(req.params.id);
+            if (existingBlog) {
+                req.body.image = existingBlog.image;
+            }
+        }
 
     // Structure the localized content for update
-    const updateData = {};
     
-    if (req.body['title[en]'] || req.body['title[am]']) {
-        updateData.title = {
-            ...(req.body['title[en]'] && { en: req.body['title[en]'] }),
-            ...(req.body['title[am]'] && { am: req.body['title[am]'] })
-        };
-    }
-    
-    if (req.body['content[en]'] || req.body['content[am]']) {
-        updateData.content = {
-            ...(req.body['content[en]'] && { en: req.body['content[en]'] }),
-            ...(req.body['content[am]'] && { am: req.body['content[am]'] })
-        };
-    }
-
-    if (req.body.image) {
-        updateData.image = req.body.image;
-    }
-
-    const blog = await blogService.updateBlogById(req.params.id, updateData);
+    const blog = await blogService.updateBlogById(req.params.id, req.body);
     res.status(httpStatus.OK).json({
         status: 'success',
         data: blog

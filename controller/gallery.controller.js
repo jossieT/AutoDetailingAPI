@@ -46,11 +46,11 @@ const updateGalleryEntryById = catchAsync(async (req, res) => {
     // Handle image upload for updates
     if (req.file) {
         req.body.imageUrl = req.file.path;
-    } else if (!req.body.imageUrl) {
+    } else if (!req.body.image) {
         // Keep existing image if no new image is provided
         const existingGallery = await galleryService.getGalleryEntryById(req.params.galleryId);
         if (existingGallery) {
-            req.body.imageUrl = existingGallery.imageUrl;
+            req.body.image = existingGallery.imageUrl;
         }
     }
 
