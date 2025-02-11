@@ -13,15 +13,14 @@ const createBlog = catchAsync(async (req, res) => {
 
     
     // Find admin user and set as author
-    const adminUser = await userService.findAdminUser();
-    if (!adminUser) {
-        return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
-            status: 'error',
-            message: 'Admin user not found'
-        });
-    }
-    req.body.author = adminUser._id;
-    
+    // const adminUser = await userService.findAdminUser();
+    // if (!adminUser) {
+    //     return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
+    //         status: 'error',
+    //         message: 'Admin user not found'
+    //     });
+    // }
+    // req.body.author = adminUser._id;
     const blog = await blogService.createBlog(req.body);
     res.status(httpStatus.CREATED).json({
         status: 'success',

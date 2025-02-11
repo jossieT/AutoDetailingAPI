@@ -7,10 +7,10 @@ const blogSchema = new mongoose.Schema({
     },
     content: {
         en: { type: String }, // English content
-        am: { type: String}, // Amharic content
+        am: { type: String }, // Amharic content
     },
     image: { type: String }, // Add image field for Cloudinary URL
-    author: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    author: { type: String, default: 'Swift Addis' },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
 });
