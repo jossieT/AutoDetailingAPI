@@ -198,17 +198,17 @@ const router = express.Router();
 
 
 // Get all staff
-router.get('/api/staff', auth, staffController.allStaff);
+router.get('/api/staff', staffController.allStaff);
 // Add a new staff member
-router.post('/api/staff', auth, staffController.addStaff);
+router.post('/api/staff', staffController.addStaff);
 
 // Edit staff details
-router.put('/api/staff/:staffId', auth, staffController.editStaff);
+router.patch('/api/staff/:staffId', staffController.editStaff);
 
 // Delete staff
-router.delete('/api/staff/:staffId', auth, staffController.deleteStaff);
+router.delete('/api/staff/:staffId', staffController.deleteStaff);
 
 // Get bookings assigned to staff
-router.get('/api/staff/:staffId/bookings', auth, staffController.getStaffBookings);
+router.get('/api/staff/:staffId/bookings', staffController.getStaffBookings);
 
 module.exports = router;

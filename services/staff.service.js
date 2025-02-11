@@ -3,11 +3,11 @@ const Booking = require('../model/booking.model');
 
 //Get All staff list
 const staffList = async () => {
-    const staffs = User.find({ 'role': 'staff' })
-    .populate({
-        path: 'assignedBookings',
-        select: 'serviceStartingTime serviceEndTime clientDetails -_id', // Customize the fields to return
-    });
+    const staffs = User.find({})
+        .populate({
+            path: 'assignedBookings',
+            select: 'serviceStartingTime serviceEndTime clientDetails -_id', // Customize the fields to return
+        });
     // .populate('assignedBookings', 'clientDetails appointmentDate serviceStartingTime serviceEndingTime') // Populate service details
     // .exec();
     if (!staffs) {
