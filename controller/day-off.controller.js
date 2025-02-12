@@ -3,11 +3,10 @@ const dayOffService = require('../services/day-off.service');
 
 // Create a new day off
 const createDayOff = catchAsync(async (req, res) => {
-    const { date, reason, times } = req.body;
-    const dayOff = await dayOffService.createDayOff({ date, reason, times });
+    const dayOff = await dayOffService.createDayOff(req.body);
     res.status(201).json({
         status: 'success',
-        message: times && times.length > 0 ? 'Specific times marked as off' : 'Full day marked as off',
+        message: dayOff.isFullDay ? 'Full day marked as off' : 'Time slots marked as off',
         data: dayOff
     });
 });

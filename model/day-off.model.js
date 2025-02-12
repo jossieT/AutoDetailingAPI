@@ -1,23 +1,27 @@
 const mongoose = require('mongoose');
 
+const timeRangeSchema = new mongoose.Schema({
+    startTime: String,
+    endTime: String
+}, { _id: false });
+
 const dayOffSchema = new mongoose.Schema({
     date: { 
         type: Date, 
-        required: true, 
-        unique: true 
+        required: true
     },
     reason: { 
         type: String,
         required: true
     },
-    times: {
-        type: [String],
-        default: [],
-        validate: {
-            validator: function(times) {
-                // If times array is empty, it's considered a full day off
-                return true;
-            }
+    isFullDay: {
+        type: Boolean,
+        default: false
+    },
+    timeRange: {
+        type: timeRangeSchema,
+        required: function() {
+            return !this.isFullDay;
         }
     },
     createdAt: { 
