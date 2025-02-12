@@ -8,6 +8,7 @@ const createBlogSchema = {
         'content.am': joi.string().required(),
         image: joi.string().allow('', null), // Allow image URL to be optional
         author: joi.string().default('Swift Addis'),
+        available: joi.boolean().default(true),
     }),
 };
 
@@ -22,6 +23,7 @@ const updateBlogSchema = {
         'content.am': joi.string(),
         image: joi.string().allow('', null),
         author: joi.string().default('Swift Addis'),
+        available: joi.boolean(),
     }),
 };
 

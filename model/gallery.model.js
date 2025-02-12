@@ -6,6 +6,7 @@ const gallerySchema = new mongoose.Schema({
         en: { type: String }, // English description
         am: { type: String }, // Amharic description
     },
+    available: { type: Boolean, default: true },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
 });

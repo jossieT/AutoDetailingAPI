@@ -11,11 +11,12 @@ const blogSchema = new mongoose.Schema({
     },
     image: { type: String }, // Add image field for Cloudinary URL
     author: { type: String, default: 'Swift Addis' },
+    available: { type: Boolean, default: true },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
 });
 
-blogSchema.pre('save', function (next) {
+    blogSchema.pre('save', function (next) {
     this.updatedAt = Date.now();
     next();
 });

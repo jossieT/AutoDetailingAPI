@@ -6,6 +6,7 @@ const createGallerySchema = {
         'description.en': joi.string().required(),
         'description.am': joi.string().required(),
         image: joi.string().allow('', null),
+        available: joi.boolean().default(true),
     }),
 };
 
@@ -14,9 +15,10 @@ const updateGallerySchema = {
         galleryId: joi.string().hex().length(24).required(),
     }),
     body: joi.object().keys({
-        'description.en': joi.string().required(),
-        'description.am': joi.string().required(),
+        'description.en': joi.string(),
+        'description.am': joi.string(),
         image: joi.string().allow('', null),
+        available: joi.boolean(),
     }),
 };
 
