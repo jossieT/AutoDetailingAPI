@@ -18,8 +18,11 @@ const workingHoursSchema = new mongoose.Schema({
         type: Boolean, 
         default: false 
     },
-    partialDayOff: [partialDayOffSchema]
+    partialDayOff: [partialDayOffSchema] // Array of partial day-offs
 });
+
+// Add index for efficient date queries
+workingHoursSchema.index({ date: 1 });
 
 const WorkingHours = mongoose.model('WorkingHours', workingHoursSchema);
 

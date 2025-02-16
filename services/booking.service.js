@@ -8,6 +8,8 @@ const Service = require('../model/service.model');
 const transporter = require('../config/nodemailer');
 const { bookingConfirmationTemplate, staffNotificationTemplate, bookingCancellationTemplate, bookingApprovalTemplate, bookingCompletedTemplate } = require('../utils/emailTemplates');
 const AddOnService = require('../model/addon.service.model');
+
+
 const calculateTotalPrice = (services) => {
     // Use reduce to sum up all service base prices
     return services.reduce((total, service) => total + service.basePrice, 0);
@@ -134,8 +136,15 @@ const getAvailableSlots = async (date) => {
 const createBooking = async (bookingData) => {
     const { appointmentDate, serviceStartingTime, vehicleDetails, service_ids, selectedAddOns } = bookingData;
 
+   
+    
+    
+    // const { error } = validateBookingData(bookingData);
+    // if (error) {
+    //     throw new ApiError(httpStatus.BAD_REQUEST, error.details.map(err => err.message).join(', '));
+    // }
     // Validate required fields
-    // if (!vehicleDetails || !vehicleDetails.carType) {
+    // if (!bookingData.vehicleDetails || !bookingData.vehicleDetails.carType) {
     //     throw new ApiError(httpStatus.BAD_REQUEST, 'Vehicle type (SUV or AUTO) must be specified for booking.');
     // }
 
@@ -170,7 +179,7 @@ const createBooking = async (bookingData) => {
     let totalDuration = 0;
     const serviceDuration = services.reduce((total, service) => {
         if (!service.duration || !service.duration[vehicleDetails.carType]) {
-            throw new ApiError(httpStatus.BAD_REQUEST, `Service ${service.name} does not have a duration for ${vehicleDetails.carType}.`);
+            throw new ApiError(httpStatus.BAD_REQUEST, `Service ${service.name} does not have a duration for ${bookingData.vehicleDetails.carType}.`);
         }
         return total + service.duration[vehicleDetails.carType];
     }, 0);
@@ -341,11 +350,46 @@ const getBookingById = async (bookingId) => {
 
 // Update a booking by ID
 const updateBookingById = async (bookingId, updateData) => {
-    const booking = await Booking.findByIdAndUpdate(bookingId, updateData, { new: true });
+    // First check if the booking exists
+    const booking = await Booking.findById(bookingId);
     if (!booking) {
         throw new ApiError(httpStatus.NOT_FOUND, 'Booking not found');
     }
-    return booking;
+
+    // If updating appointment date or time, validate availability
+    if (updateData.appointmentDate || updateData.serviceStartingTime) {
+        const date = updateData.appointmentDate || booking.appointmentDate;
+        const time = updateData.serviceStartingTime || booking.serviceStartingTime;
+
+        const workingHours = await WorkingHours.findOne({ date: new Date(date) });
+        if (!workingHours) {
+            throw new ApiError(httpStatus.NOT_FOUND, 'Working hours not initialized for the selected date');
+        }
+
+        if (workingHours.dayOff) {
+            throw new ApiError(httpStatus.BAD_REQUEST, 'Selected date is a day off');
+        }
+
+        // Only check availability if the time is different from the current booking
+        if (time !== booking.serviceStartingTime) {
+            if (!workingHours.availableSlots.includes(time)) {
+                throw new ApiError(httpStatus.BAD_REQUEST, 'Selected time slot is not available');
+            }
+        }
+    }
+
+    // Update the booking with the new data
+    const updatedBooking = await Booking.findByIdAndUpdate(
+        bookingId,
+        { $set: updateData },
+        { new: true, runValidators: true }
+    ).populate('service_ids selectedAddOns assignedTo');
+
+    if (!updatedBooking) {
+        throw new ApiError(httpStatus.NOT_FOUND, 'Booking not found');
+    }
+
+    return updatedBooking;
 };
 
 // Delete a booking by ID

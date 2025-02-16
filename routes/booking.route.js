@@ -375,7 +375,11 @@ const bookingValidation = require('../validations/booking.validation');
 router.get('/api/available-slots', bookingController.getAvailableSlots);
 
 // Create a new booking
-router.post('/api/bookings', validate(bookingValidation.createBookingSchema), uploadBookingImages.array('images', 10), bookingController.createBooking);
+router.post('/api/bookings',
+    uploadBookingImages.array('images', 5),  // Process form-data first
+    validate(bookingValidation.createBookingSchema),  // Then validate
+    bookingController.createBooking
+);
 
 // Get all bookings
 router.get('/api/bookings', bookingController.getAllBookings);
@@ -384,7 +388,11 @@ router.get('/api/bookings', bookingController.getAllBookings);
 router.get('/api/bookings/:bookingId', validate(bookingValidation.getBookingSchema), bookingController.getBookingById);
 
 // Update a booking by ID
-router.patch('/api/bookings/:bookingId', validate(bookingValidation.updateBookingSchema), bookingController.updateBookingById);
+router.patch('/api/bookings/:bookingId', 
+    uploadBookingImages.array('images', 5),  // Handle file uploads first
+    validate(bookingValidation.updateBookingSchema),  // Then validate
+    bookingController.updateBookingById
+);
 
 // Delete a booking by ID
 router.delete('/api/bookings/:bookingId', validate(bookingValidation.deleteBookingSchema), bookingController.deleteBookingById);

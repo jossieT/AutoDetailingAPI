@@ -8,7 +8,8 @@ const timeRangeSchema = new mongoose.Schema({
 const dayOffSchema = new mongoose.Schema({
     date: { 
         type: Date, 
-        required: true
+        required: true,
+        index: true // Remove unique constraint to allow multiple day-offs per date
     },
     reason: { 
         type: String,
@@ -24,6 +25,11 @@ const dayOffSchema = new mongoose.Schema({
             return !this.isFullDay;
         }
     },
+    status: {
+        type: String,
+        enum: ['active', 'cancelled'],
+        default: 'active'
+    },
     createdAt: { 
         type: Date, 
         default: Date.now 
@@ -38,6 +44,13 @@ const dayOffSchema = new mongoose.Schema({
 dayOffSchema.pre('save', function(next) {
     this.updatedAt = Date.now();
     next();
+});
+
+// Create a compound index for date + timeRange to prevent overlapping time ranges
+dayOffSchema.index({ 
+    date: 1, 
+    'timeRange.startTime': 1, 
+    'timeRange.endTime': 1 
 });
 
 module.exports = mongoose.model('DayOff', dayOffSchema);

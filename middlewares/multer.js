@@ -8,11 +8,16 @@ const getUploadMiddleware = (folderName) => {
         cloudinary,
         params: {
             folder: folderName, // Dynamic folder name
-            allowed_formats: ['jpg', 'png', 'jpeg'], // Allowed file types
+            allowed_formats: ['jpg', 'png', 'jpeg', 'webp'], // Allowed file types
         },
     });
 
-    return multer({ storage });
+    return multer({
+         storage,
+         limits: {
+            fileSize: 5 * 1024 * 1024 // 5MB limit
+        } 
+        });
 };
 
 module.exports = {

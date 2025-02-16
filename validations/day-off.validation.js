@@ -43,6 +43,22 @@ const deleteDayOffSchema = {
     }),
 };
 
+const updateDayOffSchema = {
+    params: joi.object().keys({
+        dayOffId: joi.string().hex().length(24).required()
+    }),
+    body: joi.object().keys({
+        reason: joi.string(),
+        timeRange: joi.object({
+            startTime: joi.string().pattern(timePattern)
+                .message('Start time must be in format "HH:MM AM/PM"'),
+            endTime: joi.string().pattern(timePattern)
+                .message('End time must be in format "HH:MM AM/PM"')
+        }),
+        status: joi.string().valid('active', 'cancelled')
+    }).min(1)
+};
+
 // Helper function to convert 12-hour format to 24-hour format
 const convertTo24Hour = (time12h) => {
     const [time, modifier] = time12h.split(' ');
@@ -60,5 +76,6 @@ const convertTo24Hour = (time12h) => {
 
 module.exports = {
     createDayOffSchema,
-    deleteDayOffSchema
+    deleteDayOffSchema,
+    updateDayOffSchema
 }; 

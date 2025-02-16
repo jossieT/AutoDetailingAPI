@@ -20,7 +20,36 @@ const getAllDayOffs = catchAsync(async (req, res) => {
     });
 });
 
-// Delete a day off by date
+// Update a day off
+const updateDayOff = catchAsync(async (req, res) => {
+    const { dayOffId } = req.params;
+    const updateData = {
+        ...req.body,
+        // If timeRange is provided in separate fields, combine them
+        ...(req.body.startTime && req.body.endTime && {
+            timeRange: {
+                startTime: req.body.startTime,
+                endTime: req.body.endTime
+            }
+        })
+    };
+
+    // Remove individual time fields if they were combined into timeRange
+    if (updateData.timeRange) {
+        delete updateData.startTime;
+        delete updateData.endTime;
+    }
+
+    const updatedDayOff = await dayOffService.updateDayOff(dayOffId, updateData);
+    
+    res.status(200).json({
+        status: 'success',
+        message: 'Day off updated successfully',
+        data: updatedDayOff
+    });
+});
+
+// Delete a day off
 const deleteDayOff = catchAsync(async (req, res) => {
     const { date } = req.params;
     await dayOffService.deleteDayOff(date);
@@ -34,4 +63,5 @@ module.exports = {
     createDayOff,
     getAllDayOffs,
     deleteDayOff,
+    updateDayOff
 };

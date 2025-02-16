@@ -1,6 +1,8 @@
 const express = require('express');
 const dayOffController = require('../controller/day-off.controller');
 const router = express.Router();
+const validate  = require('../middlewares/validate');
+const dayOffValidation = require('../validations/day-off.validation');
 
 
 /**
@@ -149,5 +151,11 @@ router.get('/api/day-offs', dayOffController.getAllDayOffs);
 
 // Delete a day off by date
 router.delete('/api/day-offs/:date', dayOffController.deleteDayOff);
+
+// Update a day off
+router.patch('/api/day-offs/:dayOffId', 
+    //validate(dayOffValidation.updateDayOffSchema), 
+    dayOffController.updateDayOff
+);
 
 module.exports = router;
