@@ -4,7 +4,7 @@ const createGallerySchema = {
     body: joi.object().keys({
         // Will be set by controller
         'description.en': joi.string(),
-        'description.am': joi.string(),
+        'description.am': joi.string().allow('', null),
         image: joi.string().allow('', null),
         available: joi.boolean().default(true),
     }),
@@ -16,7 +16,7 @@ const updateGallerySchema = {
     }),
     body: joi.object().keys({
         'description.en': joi.string(),
-        'description.am': joi.string(),
+        'description.am': joi.string().allow('', null),
         image: joi.string().allow('', null),
         available: joi.boolean(),
     }),
