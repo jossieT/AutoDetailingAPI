@@ -124,7 +124,7 @@ const createDayOff = async (data) => {
 };
 
 const getAllDayOffs = async () => {
-    return await DayOff.find().sort({ date: 1 });
+    return await DayOff.find();
 };
 
 const updateDayOff = async (dayOffId, updateData) => {

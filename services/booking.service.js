@@ -332,18 +332,18 @@ const getAllBookings = async () => {
 const getBookingById = async (bookingId) => {
     const booking = await Booking.findById(bookingId)
         .populate('service_ids', 'name description basePrice') // Populate service details
-        .populate('assignedTo', 'name hone email')
+        .populate('assignedTo', 'name phone email')
         .populate('selectedAddOns', 'optionName additionalPrice description')
         .exec();
     if (!booking) {
         throw new ApiError(httpStatus.NOT_FOUND, 'Booking not found');
     }
-    console.log(booking.images[0].url);
+    //console.log(booking.images[0].url);
 
     const services = booking.service_ids; // Assuming service_ids are populated
     const totalPrice = calculateTotalPrice(services);
 
-    console.log(totalPrice); // Log the total price
+    //console.log(totalPrice); // Log the total price
     booking.totalPrice = totalPrice; // Update the booking's total price
     return booking;
 };
