@@ -5,10 +5,10 @@ const httpStatus = require('http-status');
 
 const createDayOff = async (data) => {
     const { date, reason, startTime, endTime, isFullDay } = data;
-    
+
     // Find or initialize working hours for the given date
     let workingHours = await WorkingHours.findOne({ date: new Date(date) });
-    
+
     // If working hours don't exist, initialize them
     if (!workingHours) {
         const timeSlots = generateTimeSlots('6:00 AM', '7:00 PM', 30);
@@ -28,15 +28,15 @@ const createDayOff = async (data) => {
 
     if (isFullDay) {
         // Check if there are any existing partial day-offs
-        const existingDayOffs = await DayOff.find({ 
-            date: new Date(date), 
+        const existingDayOffs = await DayOff.find({
+            date: new Date(date),
             isFullDay: false,
             status: 'active'
         });
-        
+
         if (existingDayOffs.length > 0) {
             throw new ApiError(
-                httpStatus.BAD_REQUEST, 
+                httpStatus.BAD_REQUEST,
                 'Cannot mark full day off when partial day-offs exist'
             );
         }
@@ -50,14 +50,14 @@ const createDayOff = async (data) => {
         // Validate that we have both start and end times for partial day off
         if (!startTime || !endTime) {
             throw new ApiError(
-                httpStatus.BAD_REQUEST, 
+                httpStatus.BAD_REQUEST,
                 'Both start time and end time are required for partial day off'
             );
         }
 
         // Check for overlapping time ranges
-        const existingDayOffs = await DayOff.find({ 
-            date: new Date(date), 
+        const existingDayOffs = await DayOff.find({
+            date: new Date(date),
             isFullDay: false,
             status: 'active'
         });
@@ -83,12 +83,12 @@ const createDayOff = async (data) => {
 
         // Generate slots between start and end time
         const affectedSlots = generateTimeSlots(startTime, endTime, 30);
-        
+
         // Check if any of these slots are already marked as unavailable
-        const unavailableSlots = affectedSlots.filter(slot => 
+        const unavailableSlots = affectedSlots.filter(slot =>
             workingHours.unavailableSlots.includes(slot)
         );
-        
+
         if (unavailableSlots.length > 0) {
             throw new ApiError(
                 httpStatus.BAD_REQUEST,
@@ -124,7 +124,7 @@ const createDayOff = async (data) => {
 };
 
 const getAllDayOffs = async () => {
-    return await DayOff.find({ status: 'active' }).sort({ date: 1 });
+    return await DayOff.find().sort({ date: 1 });
 };
 
 const updateDayOff = async (dayOffId, updateData) => {
@@ -186,8 +186,8 @@ const deleteDayOff = async (dayOffId) => {
             workingHours.unavailableSlots = [];
         } else {
             const slotsToRelease = generateTimeSlots(
-                dayOff.timeRange.startTime, 
-                dayOff.timeRange.endTime, 
+                dayOff.timeRange.startTime,
+                dayOff.timeRange.endTime,
                 30
             );
             workingHours.unavailableSlots = workingHours.unavailableSlots.filter(
@@ -195,8 +195,8 @@ const deleteDayOff = async (dayOffId) => {
             );
             workingHours.availableSlots.push(...slotsToRelease);
             workingHours.partialDayOff = workingHours.partialDayOff.filter(
-                pdo => pdo.startTime !== dayOff.timeRange.startTime || 
-                       pdo.endTime !== dayOff.timeRange.endTime
+                pdo => pdo.startTime !== dayOff.timeRange.startTime ||
+                    pdo.endTime !== dayOff.timeRange.endTime
             );
         }
         await workingHours.save();
@@ -204,6 +204,14 @@ const deleteDayOff = async (dayOffId) => {
 
     await DayOff.findByIdAndDelete(dayOffId);
     return { message: 'Day off deleted successfully' };
+};
+
+const getDayOffsByDate = async (date) => {
+    const dayOffs = await DayOff.find({ date: new Date(date) });
+    if (!dayOffs) {
+        throw new ApiError(httpStatus.NOT_FOUND, 'No day-offs found for the given date');
+    }
+    return dayOffs;
 };
 
 // Helper function to generate time slots
@@ -263,5 +271,6 @@ module.exports = {
     createDayOff,
     getAllDayOffs,
     updateDayOff,
-    deleteDayOff
+    deleteDayOff,
+    getDayOffsByDate
 };

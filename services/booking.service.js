@@ -338,7 +338,7 @@ const getBookingById = async (bookingId) => {
     if (!booking) {
         throw new ApiError(httpStatus.NOT_FOUND, 'Booking not found');
     }
-
+    console.log(booking.images[0].url);
 
     const services = booking.service_ids; // Assuming service_ids are populated
     const totalPrice = calculateTotalPrice(services);
@@ -355,7 +355,7 @@ const updateBookingById = async (bookingId, updateData) => {
     if (!booking) {
         throw new ApiError(httpStatus.NOT_FOUND, 'Booking not found');
     }
-
+    
     // If updating appointment date or time, validate availability
     if (updateData.appointmentDate || updateData.serviceStartingTime) {
         const date = updateData.appointmentDate || booking.appointmentDate;

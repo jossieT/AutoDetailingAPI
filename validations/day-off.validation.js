@@ -59,6 +59,12 @@ const updateDayOffSchema = {
     }).min(1)
 };
 
+const getDayOffsByDate = {
+    params: joi.object().keys({
+        date: joi.date().required(),
+    }),
+};
+
 // Helper function to convert 12-hour format to 24-hour format
 const convertTo24Hour = (time12h) => {
     const [time, modifier] = time12h.split(' ');
@@ -74,8 +80,11 @@ const convertTo24Hour = (time12h) => {
     return `${hours.toString().padStart(2, '0')}:${minutes}`;
 };
 
+
+
 module.exports = {
     createDayOffSchema,
     deleteDayOffSchema,
-    updateDayOffSchema
+    updateDayOffSchema,
+    getDayOffsByDate
 }; 

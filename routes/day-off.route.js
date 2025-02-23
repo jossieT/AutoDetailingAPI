@@ -158,4 +158,7 @@ router.patch('/api/day-offs/:dayOffId',
     dayOffController.updateDayOff
 );
 
+router.get('/api/day-offs/:date', validate(dayOffValidation.getDayOffsByDate), dayOffController.getDayOffsByDate);
+
+
 module.exports = router;

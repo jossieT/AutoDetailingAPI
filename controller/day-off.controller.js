@@ -59,9 +59,18 @@ const deleteDayOff = catchAsync(async (req, res) => {
     });
 });
 
+const getDayOffsByDate = catchAsync(async (req, res) => {
+    const dayOffs = await dayOffService.getDayOffsByDate(req.params.date);
+    res.status(200).json({
+        status: 'success',
+        data: dayOffs,
+    });
+});
+
 module.exports = {
     createDayOff,
     getAllDayOffs,
     deleteDayOff,
-    updateDayOff
+    updateDayOff,
+    getDayOffsByDate
 };
