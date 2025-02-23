@@ -208,7 +208,7 @@ const deleteDayOff = async (dayOffId) => {
 
 const getDayOffsByDate = async (date) => {
     const dayOffs = await DayOff.find({ date: new Date(date) });
-    if (!dayOffs) {
+    if (dayOffs.length === 0) {
         throw new ApiError(httpStatus.NOT_FOUND, 'No day-offs found for the given date');
     }
     return dayOffs;
