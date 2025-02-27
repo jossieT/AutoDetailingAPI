@@ -177,7 +177,7 @@ const { adminAuth } = require('../middlewares/auth');
 router.post('/api/addons', adminAuth, validate(addonValidation.createAddOnService), addOnController.createAddOn); // Create an add-on
 router.get('/api/addons', addOnController.getAllAddOns); // Get all add-ons
 router.get('/api/addons/:id', validate(addonValidation.getAddOnServiceById), addOnController.getAddOnById); // Get a single add-on
-router.patch('/api/addons/:id', adminAuth, avalidate(addonValidation.updateAddOnServiceById), addOnController.updateAddOn); // Update an add-on
+router.patch('/api/addons/:id', adminAuth, validate(addonValidation.updateAddOnServiceById), addOnController.updateAddOn); // Update an add-on
 router.delete('/api/addons/:id', adminAuth, validate(addonValidation.deleteAddOnServiceById), addOnController.deleteAddOn); // Delete an add-on
 
 module.exports = router;
