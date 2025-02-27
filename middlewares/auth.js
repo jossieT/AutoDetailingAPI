@@ -2,6 +2,23 @@ const passport = require('passport');
 const httpStatus = require('http-status');
 const { ApiError } = require('../utils/ApiError');
 
+// Basic verify callback without role check
+const basicVerifyCallback = (req, resolve, reject) => async (err, user, info) => {
+    if (err || info || !user) {
+        return reject(new ApiError(httpStatus.UNAUTHORIZED, 'Please authenticate'));
+    }
+    const getuser = await user;
+    
+    // Verify that user is either admin or staff
+    if (await getuser.role !== 'admin' && await getuser.role !== 'staff') {
+        return reject(new ApiError(httpStatus.FORBIDDEN, 'Access denied: Admin or Staff only'));
+    }
+
+    req.user = user;
+    resolve();
+};
+
+// Role-specific verify callback
 const verifyCallBack = (req, resolve, reject, requiredRole) => async (err, user, info) => {
     if (err || info || !user) {
         return reject(new ApiError(httpStatus.UNAUTHORIZED, 'Please authenticate'));
@@ -17,10 +34,10 @@ const verifyCallBack = (req, resolve, reject, requiredRole) => async (err, user,
     resolve();
 };
 
-// Basic authentication without role check
+// Basic authentication that works for both admin and staff
 const authenticate = async (req, res, next) => {
     return new Promise((resolve, reject) => {
-        passport.authenticate('jwt', { session: false }, verifyCallBack(req, resolve, reject)
+        passport.authenticate('jwt', { session: false }, basicVerifyCallback(req, resolve, reject)
         )(req, res, next);
     })
         .then(() => next())
