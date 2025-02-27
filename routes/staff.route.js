@@ -250,7 +250,7 @@ router.get('/api/staff', adminAuth, staffController.allStaff);
 router.post('/api/staff', adminAuth, staffController.addStaff);
 
 // Edit staff details
-router.patch('/api/staff/:staffId', adminAuth, staffAuth, staffController.editStaff);
+router.patch('/api/staff/:staffId', adminAuth, staffController.editStaff);
 
 // Delete staff
 router.delete('/api/staff/:staffId', adminAuth, staffController.deleteStaff);
