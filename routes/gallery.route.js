@@ -4,6 +4,7 @@ const validate = require('../middlewares/validate');
 const galleryValidation = require('../validations/gallery.validation');
 const { authenticate, adminAuth } = require('../middlewares/auth');
 const { uploadGalleryImages } = require('../middlewares/multer');
+
 const router = express.Router();
 
 /**
@@ -158,6 +159,7 @@ const router = express.Router();
 
 // Create a new gallery entry (admin only)
 router.post('/api/gallery', 
+    adminAuth,
     uploadGalleryImages.single('image'),
     validate(galleryValidation.createGallerySchema), 
     galleryController.createGalleryEntry
@@ -178,7 +180,7 @@ router.get('/api/gallery/:galleryId',
 // Update a gallery entry by ID (admin only)
 router.patch('/api/gallery/:galleryId', 
     //authenticate, 
-    //adminAuth,
+    adminAuth,
     uploadGalleryImages.single('image'),
     validate(galleryValidation.updateGallerySchema), 
     galleryController.updateGalleryEntryById
@@ -187,7 +189,7 @@ router.patch('/api/gallery/:galleryId',
 // Delete a gallery entry by ID (admin only)
 router.delete('/api/gallery/:galleryId', 
     // authenticate, 
-    // adminAuth,
+     adminAuth,
     validate(galleryValidation.deleteGallerySchema), 
     galleryController.deleteGalleryEntryById
 );

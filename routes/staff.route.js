@@ -1,6 +1,6 @@
 const express = require('express');
 const staffController = require('../controller/staff.controller');
-const { adminAuth, staffAuth } = require('../middlewares/auth');
+const { adminAuth, authenticate } = require('../middlewares/auth');
 
 const router = express.Router();
 
@@ -256,9 +256,9 @@ router.patch('/api/staff/:staffId', adminAuth, staffController.editStaff);
 router.delete('/api/staff/:staffId', adminAuth, staffController.deleteStaff);
 
 // Get bookings assigned to staff
-router.get('/api/staff/:staffId/bookings', adminAuth, staffController.getStaffBookings);
+router.get('/api/staff/:staffId/bookings', authenticate, staffController.getStaffBookings);
 
 // Get staff by ID
-router.get('/api/staff/:staffId', adminAuth, staffController.getStaffById);
+router.get('/api/staff/:staffId', authenticate, staffController.getStaffById);
 
 module.exports = router;
