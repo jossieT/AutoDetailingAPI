@@ -256,9 +256,9 @@ router.patch('/api/staff/:staffId', adminAuth, staffController.editStaff);
 router.delete('/api/staff/:staffId', adminAuth, staffController.deleteStaff);
 
 // Get bookings assigned to staff
-router.get('/api/staff/:staffId/bookings', adminAuth, staffAuth, staffController.getStaffBookings);
+router.get('/api/staff/:staffId/bookings', adminAuth, staffController.getStaffBookings);
 
 // Get staff by ID
-router.get('/api/staff/:staffId', adminAuth, staffAuth, staffController.getStaffById);
+router.get('/api/staff/:staffId', adminAuth, staffController.getStaffById);
 
 module.exports = router;
