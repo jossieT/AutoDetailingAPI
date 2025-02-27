@@ -178,7 +178,7 @@ const router = express.Router();
 
 // Create a new blog post (admin only)
 router.post('/', 
- 
+    adminAuth,
     uploadBlogImages.single('image'),
     validate(blogValidation.createBlogSchema), 
     blogController.createBlog
@@ -193,13 +193,13 @@ router.get('/:id', validate(blogValidation.getBlogSchema), blogController.getBlo
 // Update a blog post (admin only)
 router.patch('/:id', 
     //authenticate, 
-    //adminAuth, 
+    adminAuth, 
     uploadBlogImages.single('image'),
     validate(blogValidation.updateBlogSchema), 
     blogController.updateBlogById
 );
 
 // Delete a blog post (admin only)
-router.delete('/:id',  validate(blogValidation.deleteBlogSchema), blogController.deleteBlogById);
+router.delete('/:id', adminAuth, validate(blogValidation.deleteBlogSchema), blogController.deleteBlogById);
 
 module.exports = router;
