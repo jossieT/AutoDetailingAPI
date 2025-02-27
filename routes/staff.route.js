@@ -1,6 +1,6 @@
 const express = require('express');
 const staffController = require('../controller/staff.controller');
-const { auth } = require('../middlewares/auth');
+const { adminAuth, staffAuth } = require('../middlewares/auth');
 
 const router = express.Router();
 
@@ -245,20 +245,20 @@ const router = express.Router();
  */
 
 // Get all staff
-router.get('/api/staff', staffController.allStaff);
+router.get('/api/staff', adminAuth, staffController.allStaff);
 // Add a new staff member
-router.post('/api/staff', staffController.addStaff);
+router.post('/api/staff', adminAuth, staffController.addStaff);
 
 // Edit staff details
-router.patch('/api/staff/:staffId', staffController.editStaff);
+router.patch('/api/staff/:staffId', adminAuth, staffAuth, staffController.editStaff);
 
 // Delete staff
-router.delete('/api/staff/:staffId', staffController.deleteStaff);
+router.delete('/api/staff/:staffId', adminAuth, staffController.deleteStaff);
 
 // Get bookings assigned to staff
-router.get('/api/staff/:staffId/bookings', staffController.getStaffBookings);
+router.get('/api/staff/:staffId/bookings', adminAuth, staffAuth, staffController.getStaffBookings);
 
 // Get staff by ID
-router.get('/api/staff/:staffId', staffController.getStaffById);
+router.get('/api/staff/:staffId', adminAuth, staffAuth, staffController.getStaffById);
 
 module.exports = router;
