@@ -20,7 +20,15 @@ const createServiceSchema = {
             AUTO: joi.number(),
         }).optional(),
         image: joi.string().uri().optional(),
-        additionalServices: joi.array().items(joi.string()).optional(),
+        additionalServices: joi.array()
+            .items(
+                joi.string()
+                    .hex()
+                    .length(24)
+                    .disallow('')
+            )
+            .optional()
+            .allow(null),
         features: joi.object().keys({
             en: joi.array().items(joi.string()),
             am: joi.array().items(joi.string()),
@@ -48,7 +56,15 @@ const updateServiceSchema = {
             AUTO: joi.number().optional(),
         }).optional(),
         image: joi.string().uri().optional(),
-        additionalServices: joi.array().items(joi.string()),
+        additionalServices: joi.array()
+            .items(
+                joi.string()
+                    .hex()
+                    .length(24)
+                    .allow('')
+            )
+            .optional()
+            .allow(null),
         features: joi.object().keys({
             en: joi.array().items(joi.string()),
             am: joi.array().items(joi.string()),
