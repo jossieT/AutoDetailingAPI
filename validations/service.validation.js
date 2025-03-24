@@ -25,7 +25,6 @@ const createServiceSchema = {
                 joi.string()
                     .hex()
                     .length(24)
-                    .disallow('')
             )
             .optional()
             .allow(null),
@@ -56,15 +55,10 @@ const updateServiceSchema = {
             AUTO: joi.number().optional(),
         }).optional(),
         image: joi.string().uri().optional(),
-        additionalServices: joi.array()
-            .items(
-                joi.string()
-                    .hex()
-                    .length(24)
-                    .allow('')
-            )
-            .optional()
-            .allow(null),
+        additionalServices: joi.alternatives().try(
+            joi.string(),
+            joi.array().items(joi.string())
+        ).optional().allow(null),
         features: joi.object().keys({
             en: joi.array().items(joi.string()),
             am: joi.array().items(joi.string()),

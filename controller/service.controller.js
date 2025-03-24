@@ -39,7 +39,22 @@ const getServiceById = catchAsync(async (req, res) => {
 /**
  * Update a service by ID
  */
-const updateServiceById = catchAsync(async (req, res) => {
+const updateService = catchAsync(async (req, res) => {
+    // Handle additionalServices transformation
+    if (req.body.additionalServices !== undefined) {
+        if (req.body.additionalServices === null || req.body.additionalServices.length === 0) {
+            // Set to empty array if null or empty array provided
+            req.body.additionalServices = [];
+        } else {
+            // Transform object format to ID strings
+            req.body.additionalServices = req.body.additionalServices.map(item => {
+                if (typeof item === 'object' && item._id) {
+                    return item._id;
+                }
+                return item;
+            });
+        }
+    }
 
     // Check if a new image file is uploaded
     if (req.file) {
@@ -53,7 +68,10 @@ const updateServiceById = catchAsync(async (req, res) => {
         }
     }
 
-    const service = await serviceService.updateServiceById(req.params.serviceId, req.body);
+    const service = await serviceService.updateServiceById(
+        req.params.serviceId,
+        req.body
+    );
     res.status(httpStatus.OK).send(service);
 });
 
@@ -69,6 +87,6 @@ module.exports = {
     createService,
     getServices,
     getServiceById,
-    updateServiceById,
+    updateService,
     deleteServiceById,
 };

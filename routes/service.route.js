@@ -256,7 +256,7 @@ router.get('/api/service', serviceController.getServices);
 router.get('/api/service/:serviceId', validate(serviceValidation.getServiceSchema), serviceController.getServiceById);
 
 // Update a specific service by ID
-router.patch('/api/service/:serviceId', adminAuth, validate(serviceValidation.updateServiceSchema), uploadServiceImages.single('image'), serviceController.updateServiceById);
+router.patch('/api/service/:serviceId', adminAuth, validate(serviceValidation.updateServiceSchema), uploadServiceImages.single('image'), serviceController.updateService);
 
 // Delete a specific service by ID
 router.delete('/api/service/:serviceId', adminAuth, validate(serviceValidation.deleteServiceSchema), serviceController.deleteServiceById);
