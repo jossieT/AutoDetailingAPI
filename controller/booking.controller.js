@@ -178,8 +178,11 @@ const updateBookingById = catchAsync(async (req, res) => {
 
 // Delete a booking by ID
 const deleteBookingById = catchAsync(async (req, res) => {
-    await bookingService.deleteBookingById(req.params.bookingId);
-    res.status(200).json({ message: "Booking deleted successfully." });
+    const result = await bookingService.deleteBookingById(req.params.bookingId);
+    res.status(200).json({
+        status: 'success',
+        message: result.message
+    });
 });
 
 //assign staff to booking

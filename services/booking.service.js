@@ -8,6 +8,7 @@ const Service = require('../model/service.model');
 const transporter = require('../config/nodemailer');
 const { bookingConfirmationTemplate, staffNotificationTemplate, bookingCancellationTemplate, bookingApprovalTemplate, bookingCompletedTemplate } = require('../utils/emailTemplates');
 const AddOnService = require('../model/addon.service.model');
+const DeletedBooking = require('../model/deleted-booking.model');
 
 
 const calculateTotalPrice = (services) => {
@@ -394,10 +395,25 @@ const updateBookingById = async (bookingId, updateData) => {
 
 // Delete a booking by ID
 const deleteBookingById = async (bookingId) => {
-    // Find the booking by ID
+    // Find the booking to archive
     const booking = await Booking.findById(bookingId);
     if (!booking) {
         throw new ApiError(httpStatus.NOT_FOUND, 'Booking not found');
+    }
+
+    try {
+        // Archive the booking before deletion
+        const deletedBooking = new DeletedBooking({
+            originalId: booking._id,
+            deletedAt: new Date(),
+            bookingData: booking.toObject()
+        });
+        await deletedBooking.save();
+    } catch (archiveError) {
+        throw new ApiError(
+            httpStatus.INTERNAL_SERVER_ERROR,
+            'Failed to archive booking before deletion'
+        );
     }
 
     // Release reserved time slots
@@ -479,7 +495,7 @@ const deleteBookingById = async (bookingId) => {
     // Finally, delete the booking
     await booking.deleteOne();
 
-    return { message: 'Booking deleted successfully, time slots released.' };
+    return { message: 'Booking deleted and archived successfully' };
 };
 
 //assign staff to a booking 
