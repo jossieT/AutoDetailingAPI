@@ -706,6 +706,17 @@ const markAsCompleted = async (bookingId) => {
     return booking;
 };
 
+const getDeletedBookings = async () => {
+    const deletedBookings = await DeletedBooking.find({})
+        .sort({ deletedAt: -1 }); // Sort by deletion date, most recent first
+    
+    if (!deletedBookings || deletedBookings.length === 0) {
+        return [];
+    }
+
+    return deletedBookings;
+};
+
 module.exports = {
     createBooking,
     getAllBookings,
@@ -716,5 +727,6 @@ module.exports = {
     getAvailableSlots,
     approveBooking,
     cancelBooking,
-    markAsCompleted
+    markAsCompleted,
+    getDeletedBookings
 };
