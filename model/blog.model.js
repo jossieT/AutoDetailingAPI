@@ -1,14 +1,22 @@
 const mongoose = require('mongoose');
 
 const blogSchema = new mongoose.Schema({
-    title: { type: String, required: true, trim: true },
-    content: { type: String, required: true },
-    author: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    title: {
+        en: { type: String, trim: true }, // English title
+        am: { type: String, trim: true }, // Amharic title
+    },
+    content: {
+        en: { type: String }, // English content
+        am: { type: String }, // Amharic content
+    },
+    image: { type: String }, // Add image field for Cloudinary URL
+    author: { type: String, default: 'Swift Addis' },
+    available: { type: Boolean, default: true },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
 });
 
-blogSchema.pre('save', function (next) {
+    blogSchema.pre('save', function (next) {
     this.updatedAt = Date.now();
     next();
 });

@@ -5,11 +5,11 @@ const createServiceSchema = {
         name: joi.object().keys({
             en: joi.string().required(),
             am: joi.string().required(),
-        }).required(),
+        }),
         description: joi.object().keys({
             en: joi.string().required(),
             am: joi.string().required(),
-        }).required(),
+        }),
         pricing: joi.object().keys({
                 basePrice: joi.number(),
                 maxPrice: joi.number(),
@@ -20,7 +20,14 @@ const createServiceSchema = {
             AUTO: joi.number(),
         }).optional(),
         image: joi.string().uri().optional(),
-        additionalServices: joi.array().items(joi.string()).optional(),
+        additionalServices: joi.array()
+            .items(
+                joi.string()
+                    .hex()
+                    .length(24)
+            )
+            .optional()
+            .allow(null),
         features: joi.object().keys({
             en: joi.array().items(joi.string()),
             am: joi.array().items(joi.string()),
@@ -48,7 +55,10 @@ const updateServiceSchema = {
             AUTO: joi.number().optional(),
         }).optional(),
         image: joi.string().uri().optional(),
-        additionalServices: joi.array().items(joi.string()),
+        additionalServices: joi.alternatives().try(
+            joi.string(),
+            joi.array().items(joi.string())
+        ).optional().allow(null),
         features: joi.object().keys({
             en: joi.array().items(joi.string()),
             am: joi.array().items(joi.string()),

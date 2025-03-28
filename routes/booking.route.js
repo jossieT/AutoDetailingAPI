@@ -370,21 +370,69 @@ const bookingValidation = require('../validations/booking.validation');
  *         description: Booking not found
  */
 
+/**
+ * @openapi
+ * '/api/bookings/deleted':
+ *  get:
+ *     tags:
+ *     - Booking
+ *     summary: Get all deleted bookings
+ *     description: Retrieve a list of all deleted bookings with their original data
+ *     responses:
+ *      200:
+ *        description: List of deleted bookings retrieved successfully
+ *        content:
+ *          application/json:
+ *            schema:
+ *              type: object
+ *              properties:
+ *                status:
+ *                  type: string
+ *                  example: success
+ *                data:
+ *                  type: array
+ *                  items:
+ *                    type: object
+ *                    properties:
+ *                      originalId:
+ *                        type: string
+ *                        description: ID of the original booking
+ *                      deletedAt:
+ *                        type: string
+ *                        format: date-time
+ *                        description: When the booking was deleted
+ *                      bookingData:
+ *                        type: object
+ *                        description: Complete data of the original booking
+ *      500:
+ *        description: Server Error
+ */
 
 // Route to get available slots
 router.get('/api/available-slots', bookingController.getAvailableSlots);
 
 // Create a new booking
-router.post('/api/bookings', validate(bookingValidation.createBookingSchema), uploadBookingImages.array('images', 10), bookingController.createBooking);
+router.post('/api/bookings',
+    uploadBookingImages.array('images', 5),
+    validate(bookingValidation.createBookingSchema),
+    bookingController.createBooking
+);
 
 // Get all bookings
 router.get('/api/bookings', bookingController.getAllBookings);
+
+// Get all deleted bookings (moved before :bookingId routes)
+router.get('/api/bookings/deleted', bookingController.getDeletedBookings);
 
 // Get a booking by ID
 router.get('/api/bookings/:bookingId', validate(bookingValidation.getBookingSchema), bookingController.getBookingById);
 
 // Update a booking by ID
-router.patch('/api/bookings/:bookingId', validate(bookingValidation.updateBookingSchema), bookingController.updateBookingById);
+router.patch('/api/bookings/:bookingId', 
+    uploadBookingImages.array('images', 5),
+    validate(bookingValidation.updateBookingSchema),
+    bookingController.updateBookingById
+);
 
 // Delete a booking by ID
 router.delete('/api/bookings/:bookingId', validate(bookingValidation.deleteBookingSchema), bookingController.deleteBookingById);
@@ -400,6 +448,5 @@ router.patch('/api/bookings/:bookingId/cancel', validate(bookingValidation.cance
 
 // Mark a booking as completed
 router.patch('/api/bookings/:bookingId/complete', validate(bookingValidation.markAsCompleted), bookingController.markAsCompleted);
-
 
 module.exports = router;

@@ -1,6 +1,6 @@
 const express = require('express');
 const staffController = require('../controller/staff.controller');
-const { auth } = require('../middlewares/auth');
+const { adminAuth, authenticate } = require('../middlewares/auth');
 
 const router = express.Router();
 
@@ -196,19 +196,69 @@ const router = express.Router();
  *        description: Server Error
  */
 
+/**
+ * @openapi
+ * '/api/staff/{staffId}':
+ *  get:
+ *     tags:
+ *     - Staff Controller
+ *     summary: Get staff member by ID
+ *     parameters:
+ *       - name: staffId
+ *         in: path
+ *         required: true
+ *         description: ID of the staff member
+ *         schema:
+ *           type: string
+ *     responses:
+ *      200:
+ *        description: Staff member details retrieved successfully
+ *        content:
+ *          application/json:
+ *            schema:
+ *              type: object
+ *              properties:
+ *                status:
+ *                  type: string
+ *                  example: success
+ *                data:
+ *                  type: object
+ *                  properties:
+ *                    _id:
+ *                      type: string
+ *                    name:
+ *                      type: string
+ *                    email:
+ *                      type: string
+ *                    phone:
+ *                      type: string
+ *                    availability:
+ *                      type: boolean
+ *                    assignedBookings:
+ *                      type: array
+ *                      items:
+ *                        type: object
+ *      404:
+ *        description: Staff member not found
+ *      500:
+ *        description: Server Error
+ */
 
 // Get all staff
-router.get('/api/staff', auth, staffController.allStaff);
+router.get('/api/staff', adminAuth, staffController.allStaff);
 // Add a new staff member
-router.post('/api/staff', auth, staffController.addStaff);
+router.post('/api/staff', adminAuth, staffController.addStaff);
 
 // Edit staff details
-router.put('/api/staff/:staffId', auth, staffController.editStaff);
+router.patch('/api/staff/:staffId', adminAuth, staffController.editStaff);
 
 // Delete staff
-router.delete('/api/staff/:staffId', auth, staffController.deleteStaff);
+router.delete('/api/staff/:staffId', adminAuth, staffController.deleteStaff);
 
 // Get bookings assigned to staff
-router.get('/api/staff/:staffId/bookings', auth, staffController.getStaffBookings);
+router.get('/api/staff/:staffId/bookings', authenticate, staffController.getStaffBookings);
+
+// Get staff by ID
+router.get('/api/staff/:staffId', authenticate, staffController.getStaffById);
 
 module.exports = router;

@@ -1,4 +1,6 @@
 const staffService = require('../services/staff.service');
+const catchAsync = require('../utils/catchAsync');
+const httpStatus = require('http-status');
 
 //List of All Staff
 const allStaff = async (req, res) => {
@@ -53,4 +55,13 @@ const getStaffBookings = async (req, res) => {
   }
 };
 
-module.exports = { addStaff, editStaff, deleteStaff, getStaffBookings, allStaff };
+// Get staff by ID
+const getStaffById = catchAsync(async (req, res) => {
+    const staff = await staffService.getStaffById(req.params.staffId);
+    res.status(200).json({
+        status: 'success',
+        data: staff
+    });
+});
+
+module.exports = { addStaff, editStaff, deleteStaff, getStaffBookings, allStaff, getStaffById };

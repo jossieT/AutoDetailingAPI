@@ -2,32 +2,40 @@ const joi = require('joi');
 
 const createBlogSchema = {
     body: joi.object().keys({
-        title: joi.string().required(),
-        content: joi.string().required(),
-        author: joi.string().required(), // Assuming author is a user ID
+        'title.en': joi.string().required(),
+        'title.am': joi.string().required(),
+        'content.en': joi.string().required(),
+        'content.am': joi.string().required(),
+        image: joi.string().allow('', null), // Allow image URL to be optional
+        author: joi.string().default('Swift Addis'),
+        available: joi.boolean().default(true),
     }),
 };
 
 const updateBlogSchema = {
-    body: joi.object().keys({
-        title: joi.string(),
-        content: joi.string(),
-        author: joi.string(), // Assuming author is a user ID
-    }),
     params: joi.object().keys({
-        id: joi.string().required(), // Assuming id is a blog ID
+        id: joi.string().hex().length(24).required(),
+    }),
+    body: joi.object().keys({
+        'title.en': joi.string(),
+        'title.am': joi.string(),
+        'content.en': joi.string(),
+        'content.am': joi.string(),
+        image: joi.string().allow('', null),
+        author: joi.string().default('Swift Addis'),
+        available: joi.boolean(),
     }),
 };
 
 const getBlogSchema = {
     params: joi.object().keys({
-        id: joi.string().required(), // Assuming id is a blog ID
+        id: joi.string().hex().length(24).required(),
     }),
 };
 
 const deleteBlogSchema = {
     params: joi.object().keys({
-        id: joi.string().required(), // Assuming id is a blog ID
+        id: joi.string().hex().length(24).required(),
     }),
 };
 

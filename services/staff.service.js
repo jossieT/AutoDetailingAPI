@@ -3,11 +3,11 @@ const Booking = require('../model/booking.model');
 
 //Get All staff list
 const staffList = async () => {
-    const staffs = User.find({ 'role': 'staff' })
-    .populate({
-        path: 'assignedBookings',
-        select: 'serviceStartingTime serviceEndTime clientDetails -_id', // Customize the fields to return
-    });
+    const staffs = User.find({})
+        .populate({
+            path: 'assignedBookings',
+            select: 'serviceStartingTime serviceEndTime clientDetails -_id', // Customize the fields to return
+        });
     // .populate('assignedBookings', 'clientDetails appointmentDate serviceStartingTime serviceEndingTime') // Populate service details
     // .exec();
     if (!staffs) {
@@ -54,4 +54,19 @@ const getStaffBookings = async (staffId) => {
     return bookings;
 };
 
-module.exports = { addStaff, editStaff, deleteStaff, getStaffBookings, staffList };
+// Get staff by ID
+const getStaffById = async (staffId) => {
+    const staff = await User.findOne({ _id: staffId })
+        .populate({
+            path: 'assignedBookings',
+            select: 'serviceStartingTime serviceEndTime clientDetails -_id',
+        });
+    
+    if (!staff) {
+        throw new Error('Staff member not found');
+    }
+
+    return staff;
+};
+
+module.exports = { addStaff, editStaff, deleteStaff, getStaffBookings, staffList, getStaffById };

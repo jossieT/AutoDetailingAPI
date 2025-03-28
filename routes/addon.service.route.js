@@ -3,6 +3,7 @@ const addOnController = require('../controller/addon.services.controller');
 const router = express.Router();
 const validate = require('../middlewares/validate');
 const addonValidation = require('../validations/addon.validation');
+const { adminAuth } = require('../middlewares/auth');
 
 /**
  * @openapi
@@ -173,10 +174,10 @@ const addonValidation = require('../validations/addon.validation');
  */
 
 
-router.post('/api/addons', validate(addonValidation.createAddOnService), addOnController.createAddOn); // Create an add-on
+router.post('/api/addons', adminAuth, validate(addonValidation.createAddOnService), addOnController.createAddOn); // Create an add-on
 router.get('/api/addons', addOnController.getAllAddOns); // Get all add-ons
 router.get('/api/addons/:id', validate(addonValidation.getAddOnServiceById), addOnController.getAddOnById); // Get a single add-on
-router.patch('/api/addons/:id', validate(addonValidation.updateAddOnServiceById), addOnController.updateAddOn); // Update an add-on
-router.delete('/api/addons/:id', validate(addonValidation.deleteAddOnServiceById), addOnController.deleteAddOn); // Delete an add-on
+router.patch('/api/addons/:id', adminAuth, validate(addonValidation.updateAddOnServiceById), addOnController.updateAddOn); // Update an add-on
+router.delete('/api/addons/:id', adminAuth, validate(addonValidation.deleteAddOnServiceById), addOnController.deleteAddOn); // Delete an add-on
 
 module.exports = router;

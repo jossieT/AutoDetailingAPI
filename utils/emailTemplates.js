@@ -14,9 +14,10 @@ const bookingConfirmationTemplate = (booking, serviceInfo, bookingEndTime, addOn
         }
     </ul>
 
-    <p>Please note that your booking will be confirmed after we contact you to finalize the details. If you have any questions or need to update your booking, feel free to reach out to us at one of the phone numbers specified below.</p>
+    <p>Thank you for choosing Swift Addis Detailing! Your booking will be confirmed after we contact you to finalize the details. If you have any questions or need to update your booking, feel free to reach out to us at the phone numbers listed below.</p>
 
-    <p>Thank you for trusting us with your car care needs. We’ll be in touch shortly to confirm your appointment!</p>
+    <p><strong>Important Note:</strong> Please ensure that you provide a private area or space where car washing/detailing is legally permitted, as Swift Addis does not perform washes in public spaces.</p>
+    <p>We appreciate your trust in us for your car care needs and will be in touch shortly to confirm your appointment!</p>
 
     <p>Best regards,</p>
     <p><strong>Swift Addis Mobile Car Detailing Team</strong></p>

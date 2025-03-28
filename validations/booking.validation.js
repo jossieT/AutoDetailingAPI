@@ -2,93 +2,107 @@ const joi = require('joi');
 
 const createBookingSchema = {
     body: joi.object().keys({
-        clientDetails: joi.object().keys({
-            firstName: joi.string().required(),
-            lastName: joi.string().required(),
-            phone: joi.string().required(),
-            email: joi.string().email().optional(),
-        }).required(),
-        vehicleDetails: joi.object().keys({
-            carType: joi.string().valid('SUV', 'AUTO').required(),
-            make: joi.string().optional(),
-            model: joi.string().optional(),
-            year: joi.number().optional(),
-        }).required(),
-        images: joi.array().items(
-            joi.object().keys({
-                url: joi.string().uri().optional(),
-                description: joi.string().optional(),
-            })
+        // Client Details
+        'clientDetails.firstName': joi.string().required(),
+        'clientDetails.lastName': joi.string().required(),
+        'clientDetails.phone': joi.string().required(),
+        'clientDetails.email': joi.string().email().allow('', null),
+
+        // Vehicle Details
+        'vehicleDetails.carType': joi.string().valid('SUV', 'AUTO').required(),
+        'vehicleDetails.make': joi.string().allow('', null),
+        'vehicleDetails.model': joi.string().allow('', null),
+        'vehicleDetails.year': joi.string().allow('', null),
+
+        // Location
+        'location.address': joi.string().allow('', null),
+        'location.coordinates.latitude': joi.string().allow('', null),
+        'location.coordinates.longitude': joi.string().allow('', null),
+
+        service_ids: joi.alternatives().try(
+            joi.string(),
+            joi.array().items(joi.string())
+        ).required(),
+
+        selectedAddOns: joi.alternatives().try(
+            joi.string(),
+            joi.array().items(joi.string())
         ).optional(),
-        location: joi.object().keys({
-            address: joi.string().optional(),
-            coordinates: joi.object().keys({
-                latitude: joi.number().optional(),
-                longitude: joi.number().optional(),
-            }).optional(),
-        }).required(),
-        service_ids: joi.array().items(joi.string().hex().length(24).required()).required(), // Assuming service IDs are MongoDB ObjectIds
-        selectedAddOns: joi.array().items(joi.string().optional()), // Assuming add-on service IDs are strings
-        appointmentDate: joi.date().required(),
-        serviceStartingTime: joi.string().required(),
-        bookingEndTime: joi.string().optional(),
-        appointmentNote: joi.string().allow('').optional(),
-        status: joi.string().valid('Pending', 'Confirmed', 'Completed', 'Canceled').default('Pending'),
-        assignedTo: joi.string().optional(), // Assuming user IDs are strings
-    }),
+
+        appointmentDate: joi.string().required(),
+        serviceStartingTime: joi.string()
+            .pattern(/^(1[0-2]|0?[1-9]):([0-5][0-9]) (AM|PM)$/)
+            .message('Service starting time must be in format "HH:MM AM/PM"')
+            .required(),
+
+        appointmentNote: joi.string().allow('', null),
+        images: joi.alternatives().try(
+            joi.string(),
+            joi.array().items(joi.any())
+        ).optional(),
+    }).unknown(true),
 };
 
 const updateBookingSchema = {
-    body: joi.object().keys({
-        clientDetails: joi.object().keys({
-            firstName: joi.string().optional(),
-            lastName: joi.string().optional(),
-            phone: joi.string().optional(),
-            email: joi.string().email().optional(),
-        }).optional(),
-        vehicleDetails: joi.object().keys({
-            carType: joi.string().valid('SUV', 'AUTO').optional(),
-            make: joi.string().optional(),
-            model: joi.string().optional(),
-            year: joi.number().optional(),
-        }).optional(),
-        images: joi.array().items(
-            joi.object().keys({
-                url: joi.string().uri().optional(),
-                description: joi.string().optional(),
-            })
-        ).optional(),
-        location: joi.object().keys({
-            address: joi.string().optional(),
-            coordinates: joi.object().keys({
-                latitude: joi.number().optional(),
-                longitude: joi.number().optional(),
-            }).optional(),
-        }).optional(),
-        service_ids: joi.array().items(joi.string().hex().length(24).optional()).optional(), // Assuming service IDs are MongoDB ObjectIds
-        selectedAddOns: joi.array().items(joi.string().hex().length(24).optional()).optional(), // Assuming add-on service IDs are MongoDB ObjectIds
-        appointmentDate: joi.date().optional(),
-        serviceStartingTime: joi.string().optional(),
-        bookingEndTime: joi.string().optional(),
-        status: joi.string().valid('Pending', 'Confirmed', 'Completed', 'Canceled').optional(),
-        assignedTo: joi.string().hex().length(24).optional(), // Assuming user IDs are MongoDB ObjectIds
-        appointmentNote: joi.string().optional(),
-        totalPrice: joi.number().optional(),
-    }),
     params: joi.object().keys({
-        bookingId: joi.string().hex().length(24).required(), // Assuming booking ID is a MongoDB ObjectId
+        bookingId: joi.string().hex().length(24).required(),
     }),
+    body: joi.object().keys({
+        // Client Details
+        'clientDetails.firstName': joi.string(),
+        'clientDetails.lastName': joi.string(),
+        'clientDetails.phone': joi.string(),
+        'clientDetails.email': joi.string().email(),
+        
+        // Vehicle Details
+        'vehicleDetails.carType': joi.string().valid('SUV', 'AUTO'),
+        'vehicleDetails.make': joi.string(),
+        'vehicleDetails.model': joi.string(),
+        'vehicleDetails.year': joi.string(),
+        
+        // Location
+        'location.address': joi.string(),
+        'location.coordinates.latitude': joi.string(),
+        'location.coordinates.longitude': joi.string(),
+        
+        service_ids: joi.alternatives().try(
+            joi.string(),
+            joi.array().items(joi.string())
+        ),
+        
+        selectedAddOns: joi.alternatives().try(
+            joi.string(),
+            joi.array().items(joi.string())
+        ),
+        
+        appointmentDate: joi.string(),
+        serviceStartingTime: joi.string()
+            .pattern(/^(1[0-2]|0?[1-9]):([0-5][0-9]) (AM|PM)$/)
+            .message('Service starting time must be in format "HH:MM AM/PM"'),
+        bookingEndTime: joi.string()
+            .pattern(/^(1[0-2]|0?[1-9]):([0-5][0-9]) (AM|PM)$/)
+            .message('Booking end time must be in format "HH:MM AM/PM"'),
+        
+        status: joi.string().valid('Pending', 'Confirmed', 'Completed', 'Canceled'),
+        assignedTo: joi.string().hex().length(24),
+        appointmentNote: joi.string().allow('', null),
+        totalPrice: joi.number(),
+        images: joi.alternatives().try(
+            joi.string(),
+            joi.array().items(joi.any())
+        ).optional(),
+    }).unknown(true),
 };
 
 const getBookingSchema = {
     params: joi.object().keys({
-        bookingId: joi.string().required(), // Assuming booking ID is a string
+        bookingId: joi.string().hex().length(24).required(),
     }),
 };
 
 const deleteBookingSchema = {
     params: joi.object().keys({
-        bookingId: joi.string().required(), // Assuming booking ID is a string
+        bookingId: joi.string().hex().length(24).required(),
     }),
 };
 

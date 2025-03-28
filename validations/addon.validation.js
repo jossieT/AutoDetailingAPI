@@ -14,7 +14,7 @@ const createAddOnService = {
         features: joi.object().keys({
             en: joi.array().items(joi.string()),
             am: joi.array().items(joi.string()),
-        }),
+        }).optional(),
         description: joi.object().keys({
             en: joi.string().required(),
             am: joi.string().required(),
@@ -36,23 +36,23 @@ const updateAddOnServiceById = {
     }),
     body: joi.object().keys({
         optionName: joi.object().keys({
-            en: joi.string().required(),
-            am: joi.string().required(),
-        }).required(),
+            en: joi.string().optional(),
+            am: joi.string().optional(),
+        }).optional(),
         additionalPrice: joi.object().keys({
-            minBasePrice: joi.number().required(),
+            minBasePrice: joi.number().optional(),
             maxPrice: joi.number().optional(),
-        }).required(),
+        }).optional(),
         features: joi.object().keys({
             en: joi.array().items(joi.string()),
             am: joi.array().items(joi.string()),
         }),
         description: joi.object().keys({
-            en: joi.string().required(),
-            am: joi.string().required(),
-        }).required(),
-        duration: joi.number().required(),
-        available: joi.boolean(),
+            en: joi.string().optional(),
+            am: joi.string().optional(),
+        }).optional(),
+        duration: joi.number().optional(),
+        available: joi.boolean().optional(),
     }),
 };
 

@@ -1,58 +1,74 @@
 const blogService = require('../services/blog.service');
+const catchAsync = require('../utils/catchAsync');
+const httpStatus = require('http-status');
+//const { userService } = require('../services');
 
-const createBlog = async (req, res) => {
-    try {
-        const blog = await blogService.createBlog(req.body);
-        res.status(201).json(blog);
-    } catch (error) {
-        res.status(400).json({ error: error.message });
+const createBlog = catchAsync(async (req, res) => {
+    // Handle image upload
+    let uploadedImage = null;
+    if (req.file) {
+        uploadedImage = req.file.path; // Cloudinary URL
+        req.body.image = uploadedImage;
     }
-};
 
-const getAllBlogs = async (req, res) => {
-    try {
-        const blogs = await blogService.getAllBlogs();
-        res.status(200).json(blogs);
-    } catch (error) {
-        res.status(400).json({ error: error.message });
-    }
-};
+    
+    // Find admin user and set as author
+    // const adminUser = await userService.findAdminUser();
+    // if (!adminUser) {
+    //     return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
+    //         status: 'error',
+    //         message: 'Admin user not found'
+    //     });
+    // }
+    // req.body.author = adminUser._id;
+    const blog = await blogService.createBlog(req.body);
+    res.status(httpStatus.CREATED).json({
+        status: 'success',
+        data: blog
+    });
+});
 
-const getBlogById = async (req, res) => {
-    try {
-        const blog = await blogService.getBlogById(req.params.id);
-        if (!blog) {
-            return res.status(404).json({ error: 'Blog not found' });
+const getAllBlogs = catchAsync(async (req, res) => {
+    const blogs = await blogService.getAllBlogs();
+    res.status(httpStatus.OK).json({
+        status: 'success',
+        data: blogs
+    });
+});
+
+const getBlogById = catchAsync(async (req, res) => {
+    const blog = await blogService.getBlogById(req.params.id);
+    res.status(httpStatus.OK).json({
+        status: 'success',
+        data: blog
+    });
+});
+
+const updateBlogById = catchAsync(async (req, res) => {
+    // Handle image upload for updates
+    if (req.file) {
+        req.body.image = req.file.path;
+    } else if (!req.body.image) {
+            // Keep existing image if no new image is provided
+            const existingBlog = await blogService.getBlogById(req.params.id);
+            if (existingBlog) {
+                req.body.image = existingBlog.image;
+            }
         }
-        res.status(200).json(blog);
-    } catch (error) {
-        res.status(400).json({ error: error.message });
-    }
-};
 
-const updateBlogById = async (req, res) => {
-    try {
-        const blog = await blogService.updateBlogById(req.params.id, req.body);
-        if (!blog) {
-            return res.status(404).json({ error: 'Blog not found' });
-        }
-        res.status(200).json(blog);
-    } catch (error) {
-        res.status(400).json({ error: error.message });
-    }
-};
+    // Structure the localized content for update
+    
+    const blog = await blogService.updateBlogById(req.params.id, req.body);
+    res.status(httpStatus.OK).json({
+        status: 'success',
+        data: blog
+    });
+});
 
-const deleteBlogById = async (req, res) => {
-    try {
-        const blog = await blogService.deleteBlogById(req.params.id);
-        if (!blog) {
-            return res.status(404).json({ error: 'Blog not found' });
-        }
-        res.status(200).json({ message: 'Blog deleted successfully' });
-    } catch (error) {
-        res.status(400).json({ error: error.message });
-    }
-};
+const deleteBlogById = catchAsync(async (req, res) => {
+    await blogService.deleteBlogById(req.params.id);
+    res.status(httpStatus.NO_CONTENT).send();
+});
 
 module.exports = {
     createBlog,

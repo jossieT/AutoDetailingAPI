@@ -18,21 +18,59 @@ const getAvailableSlots = catchAsync(async (req, res) => {
 
 // Create a new booking
 const createBooking = catchAsync(async (req, res) => {
-    
-   // Upload images to Cloudinary
-   let imageUrls = [];
-        if (req.files && req.files.length > 0) {
-            imageUrls = req.files.map((file) => file.path);
-        } else {
-            console.warn('No files uploaded!');
-        }
+    // Handle image uploads
+    let imageUrls = [];
+    if (req.files && req.files.length > 0) {
+        imageUrls = req.files.map(file => ({
+            url: file.path,
+            description: ''
+        }));
+    } else if (req.body.images) {
+        imageUrls = Array.isArray(req.body.images) 
+            ? req.body.images.map(url => ({ url, description: '' }))
+            : [{ url: req.body.images, description: '' }];
+    }
 
-    
-     req.body.images = imageUrls;
-     //console.log('Request Body:', req.body);
-    const booking = await bookingService.createBooking(req.body);
-    //booking.assignedTo = staff._id;
-    res.status(201).json(booking);
+    // Transform form-data to match the model structure
+    const bookingData = {
+        clientDetails: {
+            firstName: req.body['clientDetails.firstName'],
+            lastName: req.body['clientDetails.lastName'],
+            phone: req.body['clientDetails.phone'],
+            email: req.body['clientDetails.email'],
+        },
+        vehicleDetails: {
+            carType: req.body['vehicleDetails.carType'],
+            make: req.body['vehicleDetails.make'],
+            model: req.body['vehicleDetails.model'],
+            year: req.body['vehicleDetails.year'],
+        },
+        location: {
+            address: req.body['location.address'],
+            coordinates: {
+                latitude: req.body['location.coordinates.latitude'],
+                longitude: req.body['location.coordinates.longitude'],
+            },
+        },
+        service_ids: Array.isArray(req.body.service_ids) 
+            ? req.body.service_ids 
+            : [req.body.service_ids],
+        selectedAddOns: req.body.selectedAddOns 
+            ? (Array.isArray(req.body.selectedAddOns) 
+                ? req.body.selectedAddOns 
+                : [req.body.selectedAddOns])
+            : [],
+        appointmentDate: req.body.appointmentDate,
+        serviceStartingTime: req.body.serviceStartingTime,
+        appointmentNote: req.body.appointmentNote,
+        images: imageUrls
+    };
+
+    const booking = await bookingService.createBooking(bookingData);
+    res.status(201).json({
+        status: 'success',
+        data: booking
+    });
 });
 
 // Get all bookings
@@ -49,14 +87,102 @@ const getBookingById = catchAsync(async (req, res) => {
 
 // Update a booking by ID
 const updateBookingById = catchAsync(async (req, res) => {
-    const updatedBooking = await bookingService.updateBookingById(req.params.bookingId, req.body);
-    res.status(200).json(updatedBooking);
+    // Handle image uploads
+    let imageUrls = [];
+    if (req.files && req.files.length > 0) {
+        imageUrls = req.files.map(file => ({
+            url: file.path,
+            description: ''
+        }));
+    }
+
+    // Transform form-data to match the model structure
+    const bookingData = {};
+
+    // Only include fields that are present in the request
+    if (req.body['clientDetails.firstName'] || req.body['clientDetails.lastName'] || 
+        req.body['clientDetails.phone'] || req.body['clientDetails.email']) {
+        bookingData.clientDetails = {
+            ...(req.body['clientDetails.firstName'] && { firstName: req.body['clientDetails.firstName'] }),
+            ...(req.body['clientDetails.lastName'] && { lastName: req.body['clientDetails.lastName'] }),
+            ...(req.body['clientDetails.phone'] && { phone: req.body['clientDetails.phone'] }),
+            ...(req.body['clientDetails.email'] && { email: req.body['clientDetails.email'] }),
+        };
+    }
+
+    if (req.body['vehicleDetails.carType'] || req.body['vehicleDetails.make'] || 
+        req.body['vehicleDetails.model'] || req.body['vehicleDetails.year']) {
+        bookingData.vehicleDetails = {
+            ...(req.body['vehicleDetails.carType'] && { carType: req.body['vehicleDetails.carType'] }),
+            ...(req.body['vehicleDetails.make'] && { make: req.body['vehicleDetails.make'] }),
+            ...(req.body['vehicleDetails.model'] && { model: req.body['vehicleDetails.model'] }),
+            ...(req.body['vehicleDetails.year'] && { year: req.body['vehicleDetails.year'] }),
+        };
+    }
+
+    if (req.body['location.address'] || req.body['location.coordinates.latitude'] || 
+        req.body['location.coordinates.longitude']) {
+        bookingData.location = {
+            ...(req.body['location.address'] && { address: req.body['location.address'] }),
+            ...(req.body['location.coordinates.latitude'] || req.body['location.coordinates.longitude']) && {
+                coordinates: {
+                    ...(req.body['location.coordinates.latitude'] && { 
+                        latitude: req.body['location.coordinates.latitude'] 
+                    }),
+                    ...(req.body['location.coordinates.longitude'] && { 
+                        longitude: req.body['location.coordinates.longitude'] 
+                    }),
+                }
+            }
+        };
+    }
+
+    if (req.body.service_ids) {
+        bookingData.service_ids = Array.isArray(req.body.service_ids) 
+            ? req.body.service_ids 
+            : [req.body.service_ids];
+    }
+
+    if (req.body.selectedAddOns) {
+        bookingData.selectedAddOns = Array.isArray(req.body.selectedAddOns) 
+            ? req.body.selectedAddOns 
+            : [req.body.selectedAddOns];
+    }
+
+    if (req.body.appointmentDate) {
+        bookingData.appointmentDate = req.body.appointmentDate;
+    }
+
+    if (req.body.serviceStartingTime) {
+        bookingData.serviceStartingTime = req.body.serviceStartingTime;
+    }
+
+    if (req.body.appointmentNote) {
+        bookingData.appointmentNote = req.body.appointmentNote;
+    }
+
+    if (req.files && req.files.length > 0) {
+        bookingData.images = imageUrls;
+    }
+
+    if (req.body.status) {
+        bookingData.status = req.body.status;
+    }
+
+    const updatedBooking = await bookingService.updateBookingById(req.params.bookingId, bookingData);
+    res.status(200).json({
+        status: 'success',
+        data: updatedBooking
+    });
 });
 
 // Delete a booking by ID
 const deleteBookingById = catchAsync(async (req, res) => {
-    await bookingService.deleteBookingById(req.params.bookingId);
-    res.status(200).json({ message: "Booking deleted successfully." });
+    const result = await bookingService.deleteBookingById(req.params.bookingId);
+    res.status(200).json({
+        status: 'success',
+        message: result.message
+    });
 });
 
 //assign staff to booking
@@ -81,6 +207,14 @@ const markAsCompleted = catchAsync(async (req, res) => {
     res.status(200).json({ message: 'Booking marked as completed successfully', data: booking });
 });
 
+const getDeletedBookings = catchAsync(async (req, res) => {
+    const deletedBookings = await bookingService.getDeletedBookings();
+    res.status(200).json({
+        status: 'success',
+        data: deletedBookings
+    });
+});
+
 module.exports = {
     createBooking,
     getAllBookings,
@@ -91,5 +225,6 @@ module.exports = {
     getAvailableSlots,
     approveBooking,
     cancelBooking,
-    markAsCompleted
+    markAsCompleted,
+    getDeletedBookings
 };
