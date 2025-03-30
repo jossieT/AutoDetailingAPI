@@ -10,7 +10,12 @@ const workingHoursSchema = new mongoose.Schema({
     date: { 
         type: Date, 
         required: true,
-        unique: true 
+        index: true
+    },
+    staff: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        default: null
     },
     availableSlots: [String], // Time slots in AM/PM format
     unavailableSlots: [String], // Booked or blocked slots
@@ -21,8 +26,11 @@ const workingHoursSchema = new mongoose.Schema({
     partialDayOff: [partialDayOffSchema] // Array of partial day-offs
 });
 
-// Add index for efficient date queries
-workingHoursSchema.index({ date: 1 });
+// Remove any existing index definitions
+workingHoursSchema.index({ date: 1, staff: 1 }, { 
+    unique: true,
+    partialFilterExpression: { staff: { $exists: true } }
+});
 
 const WorkingHours = mongoose.model('WorkingHours', workingHoursSchema);
 

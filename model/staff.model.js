@@ -8,12 +8,23 @@ const staffSchema = new mongoose.Schema({
         type: Boolean, 
         default: true 
     }, // Indicates if the staff member is available
-    assignedBookings: [
-      {
+    user: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Booking', // Reference to the Booking model
-      },
-    ],
+        ref: 'User',
+        required: true
+    },
+    workingHours: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'WorkingHours'
+    }],
+    assignedBookings: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Booking'
+    }],
+    lastAssignedIndex: {
+        type: Number,
+        default: 0
+    },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
 });

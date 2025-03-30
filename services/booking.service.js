@@ -10,6 +10,13 @@ const { bookingConfirmationTemplate, staffNotificationTemplate, bookingCancellat
 const AddOnService = require('../model/addon.service.model');
 const DeletedBooking = require('../model/deleted-booking.model');
 
+process.on('unhandledRejection', (reason, promise) => {
+    if (reason.code === 11000) {
+        console.log('Duplicate key error handled globally:', reason.message);
+    } else {
+        console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+    }
+});
 
 const calculateTotalPrice = (services) => {
     // Use reduce to sum up all service base prices
@@ -36,23 +43,77 @@ const generateTimeSlots = (startTime, endTime, intervalMinutes) => {
 };
 
 const initializeWorkingHours = async (date) => {
-    const existing = await WorkingHours.findOne({ date: new Date(date) });
+    const bookingDate = new Date(date);
+    const allStaff = await User.find({ role: 'staff' });
 
-    if (!existing) {
-        const timeSlots = generateTimeSlots('06:00', '19:00', 30); // Default 30-min intervals
-        const workingHours = new WorkingHours({
-            date: new Date(date),
-            availableSlots: timeSlots,
-            unavailableSlots: [],
-            dayOff: false,
-            partialDayOff: [],
-        });
-        await workingHours.save();
-    }
+    await Promise.all(allStaff.map(async (staff) => {
+        try {
+            // Create or update working hours
+            const wh = await WorkingHours.findOneAndUpdate(
+                { 
+                    date: bookingDate,
+                    staff: staff._id 
+                },
+                {
+                    $setOnInsert: {
+                        availableSlots: generateTimeSlots('06:00', '19:00', 30),
+                        unavailableSlots: [],
+                        dayOff: false
+                    }
+                },
+                { 
+                    upsert: true, 
+                    new: true 
+                }
+            );
+
+            // Update user's workingHours array if needed
+            if (!staff.workingHours.includes(wh._id)) {
+                await User.findByIdAndUpdate(
+                    staff._id,
+                    { $addToSet: { workingHours: wh._id } },
+                    { new: true }
+                );
+                console.log(`Updated working hours for staff ${staff._id}`);
+            }
+        } catch (error) {
+            console.error(`Error initializing hours for staff ${staff._id}:`, error);
+            if (error.code === 11000) {
+                console.log('Duplicate key error - working hours already exist');
+            }
+        }
+    }));
+
+    console.log('Working hours initialization complete for', date);
+    return true;
 };
 
 const getAvailableSlots = async (date) => {
-    const workingHours = await WorkingHours.findOne({ date: new Date(date) });
+    const bookingDate = new Date(date);
+    await initializeWorkingHours(date);
+
+    const [staffWorkingHours, globalWorkingHours] = await Promise.all([
+        WorkingHours.find({
+            date: bookingDate,
+            staff: { $exists: true, $ne: null }
+        }).populate('staff'),
+        WorkingHours.findOne({ 
+            date: bookingDate,
+            staff: { $exists: false }
+        })
+    ]);
+
+    // Combine available slots from all staff
+    const allAvailableSlots = staffWorkingHours
+        .filter(wh => !wh.dayOff)
+        .flatMap(wh => 
+            wh.availableSlots.filter(slot => 
+                !globalWorkingHours?.unavailableSlots.includes(slot)
+            )
+        );
+
+    // Get unique slots that appear in at least one staff's availability
+    const uniqueSlots = [...new Set(allAvailableSlots)];
 
     const filterSlots = (slots) => {
         const timeToMinutes = (time) => {
@@ -75,66 +136,84 @@ const getAvailableSlots = async (date) => {
         });
     };
 
-
-
-    if (!workingHours) {
-        await initializeWorkingHours(date);
-        const allSlots = generateTimeSlots('06:00', '19:00', 30);
-        return filterSlots(allSlots);
-    }
-
-    if (workingHours.dayOff) {
-        return []; // Full day off
-    }
-
-    const availableSlots = workingHours.availableSlots;
-
-    // console.log(workingHours.unavailableSlots);
-    // console.log(workingHours.availableSlots);
-
-
-    const allSlot = availableSlots.sort((a, b) => {
-        const timeToMinutes = (time) => {
-            const [hours, minutesPeriod] = time.split(':');
-            const [minutes, period] = minutesPeriod.split(' ');
-            const hoursIn24 = period === 'PM' && parseInt(hours) !== 12
-                ? parseInt(hours) + 12
-                : period === 'AM' && parseInt(hours) === 12
-                    ? 0
-                    : parseInt(hours);
-            return hoursIn24 * 60 + parseInt(minutes);
-        };
-
-        return timeToMinutes(a) - timeToMinutes(b);
-    });
-
-
-
-    const filteredSlots = filterSlots(allSlot);
-
-    return filteredSlots;
-
-    // const filterSlotsForDisplay = (slots) => {
-    //     const timeToMinutes = (time) => {
-    //         const [hours, minutesPeriod] = time.split(':');
-    //         const [minutes, period] = minutesPeriod.split(' ');
-    //         const hoursIn24 = period === 'PM' && parseInt(hours) !== 12
-    //             ? parseInt(hours) + 12
-    //             : period === 'AM' && parseInt(hours) === 12
-    //                 ? 0
-    //                 : parseInt(hours);
-    //         return hoursIn24 * 60 + parseInt(minutes);
-    //     };
-
-
-
-    // }
+    return filterSlots(uniqueSlots);
 };
 
+const getAvailableStaff = async (date, timeSlot) => {
+    const bookingDate = new Date(date);
+    
+    // 1. Get all staff users not on day off
+    const allStaff = await User.find({ role: 'staff' })
+        .populate({
+            path: 'workingHours',
+            match: { date: bookingDate }
+        })
+        .populate('assignedBookings');
 
+    // 2. Filter available staff with debug logging
+    const availableStaff = allStaff.filter(user => {
+        // Debug log staff details
+        console.log(`Checking availability for staff: ${user._id}`);
+        console.log('Working Hours:', user.workingHours);
+        
+        const workingHour = user.workingHours.find(wh => 
+            wh.date.getTime() === bookingDate.getTime()
+        );
+        
+        if (!workingHour) {
+            console.log(`No working hours found for ${user._id} on ${bookingDate}`);
+            return false;
+        }
+        
+        if (workingHour.dayOff) {
+            console.log(`Staff ${user._id} is on day off`);
+            return false;
+        }
 
-// Create a new booking
+        const hasConflict = user.assignedBookings.some(booking => {
+            const sameDate = booking.appointmentDate.getTime() === bookingDate.getTime();
+            const sameSlot = booking.serviceStartingTime === timeSlot;
+            return sameDate && sameSlot;
+        });
+
+        if (hasConflict) {
+            console.log(`Staff ${user._id} has conflict at ${timeSlot}`);
+        }
+
+        return !hasConflict;
+    });
+
+    console.log(`Available staff count: ${availableStaff.length}`);
+    return availableStaff;
+};
+
+const selectStaffMember = async (availableStaff) => {
+    if (availableStaff.length === 0) return null;
+    
+    // Sort by booking count and rotation index
+    const sortedStaff = availableStaff.sort((a, b) => {
+        const bookingDiff = a.assignedBookings.length - b.assignedBookings.length;
+        if (bookingDiff !== 0) return bookingDiff;
+        return a.lastAssignedIndex - b.lastAssignedIndex;
+    });
+
+    // Select first in sorted list
+    const selectedStaff = sortedStaff[0];
+    
+    // Update rotation index atomically
+    await User.findByIdAndUpdate(selectedStaff._id, { 
+        $inc: { lastAssignedIndex: 1 },
+        $set: { lastAssignedAt: new Date() }
+    });
+
+    console.log(`Assigned to ${selectedStaff.name} (Bookings: ${selectedStaff.assignedBookings.length}, Index: ${selectedStaff.lastAssignedIndex})`);
+    return selectedStaff;
+};
+
+// Create a new bookings
 const createBooking = async (bookingData) => {
+    await initializeWorkingHours(bookingData.appointmentDate);
+
     const { appointmentDate, serviceStartingTime, vehicleDetails, service_ids, selectedAddOns } = bookingData;
 
    
@@ -164,11 +243,6 @@ const createBooking = async (bookingData) => {
     }
 
 
-
-    //Check slot availabilityavailableSlots
-    if (!workingHours.availableSlots.includes(serviceStartingTime)) {
-        throw new ApiError(httpStatus.BAD_REQUEST, 'Selected time slot is not available.');
-    }
 
     // Calculate bookingEndTime based on selected services and vehicle type
     const bookingStart = parseAMPM(serviceStartingTime);
@@ -204,77 +278,86 @@ const createBooking = async (bookingData) => {
     const bookingEnd = new Date(bookingStart.getTime() + totalDuration * 60 * 1000);
     const extendedEnd = new Date(bookingEnd.getTime() + 1 * 60 * 60 * 1000);
 
-    // Generate time slots to block
-    const slotsToBlock = [];
-    for (let time = new Date(bookingStart); time < extendedEnd; time.setMinutes(time.getMinutes() + 30)) {
-        slotsToBlock.push(formatAMPM(new Date(time)));
+    // Generate slotsToBlock before validation
+    const validationSlots = [];
+    let validationCurrentTime = new Date(bookingStart);
+    while (validationCurrentTime < bookingEnd) {
+        validationSlots.push(formatAMPM(validationCurrentTime));
+        validationCurrentTime.setMinutes(validationCurrentTime.getMinutes() + 30);
     }
-    //slotsToBlock.push(formatAMPM(extendedEnd));
-    // Convert working hours to Date objects
-    //const workStart = new Date(`1970-01-01T${workingHours.availableSlots[0]}:00`);
 
-    // const workEnd = new Date(`1970-01-01T12:00:00`);
-    // console.log(workEnd);
-    // console.log(bookingEnd);
-    // if (bookingEnd > workEnd) {
-    //     throw new ApiError(httpStatus.BAD_REQUEST, 'Booking duration exceeds the end of working hours.');
-    // }
-
-
-
-    // Generate time slots to check
-    // const slotsToCheck = [];
-    // let current = bookingStart;
-    // while (current < bookingEnd) {
-    //     slotsToCheck.push(formatAMPM(current));
-    //     current = new Date(current.getTime() + 30 * 60 * 1000); // Increment by 30 minutes
-    // }
-
-    // // Ensure all slots are available
-    // const isItAvailable = slotsToCheck.every(
-    //     (slot) => workingHours.availableSlots.includes(slot) && !workingHours.unavailableSlots.includes(slot)
-    // );
-
-    // if (!isItAvailable) {
-    //     throw new ApiError(httpStatus.BAD_REQUEST, 'One or more requested slots are not available.');
-    // }
-
-    //Validate slot availability
-    const isAvailable = slotsToBlock.every(
+    // Then validate slot availability
+    const isAvailable = validationSlots.every(
         (slot) => workingHours.availableSlots.includes(slot) && !workingHours.unavailableSlots.includes(slot)
     );
     if (!isAvailable) throw new ApiError(httpStatus.BAD_REQUEST, 'One or more requested slots are unavailable.');
 
-    // new imlemented extended to 12 hr PM
-    // const isAvailable = slotsToBlock.every(
-    //     (slot) => workingHours.availableSlots.includes(slot) || slot >= '12:00 PM'
-    // );
-    // if (!isAvailable) throw new ApiError(httpStatus.BAD_REQUEST, 'One or more requested slots are unavailable.');
+    // Automatic staff assignment
+    const availableStaff = await getAvailableStaff(bookingData.appointmentDate, bookingData.serviceStartingTime);
+    
+    if (availableStaff.length === 0) {
+        console.error('No available staff due to:');
+        console.error('- Day off status:', availableStaff.map(s => s.workingHours[0]?.dayOff));
+        console.error('- Existing bookings:', availableStaff.map(s => s.assignedBookings));
+        throw new ApiError(httpStatus.BAD_REQUEST, 'No available staff for the selected time slot');
+    }
 
+    const selectedStaff = await selectStaffMember(availableStaff);
+    
+    if (!selectedStaff) {
+        throw new ApiError(httpStatus.BAD_REQUEST, 'No available staff for the selected time slot');
+    }
 
-    // Find a staff member
-    const defaultStaff = await User.findOne({ role: 'staff' });
-    if (!defaultStaff) throw new ApiError(httpStatus.NOT_FOUND, 'No staff available for assignment');
+    // Assign to selected staff user
+    bookingData.assignedTo = selectedStaff._id;
 
-    // Mark the slot as unavailable
-    // Update unavailable and available slots
-    workingHours.unavailableSlots.push(...slotsToBlock);
-    workingHours.unavailableSlots = [...new Set(workingHours.unavailableSlots)]; // Remove duplicates
+    // Get staff working hours
+    const staffWorkingHours = await WorkingHours.findOne({
+        date: new Date(bookingData.appointmentDate),
+        staff: selectedStaff._id
+    });
 
-    workingHours.availableSlots = workingHours.availableSlots.filter(
-        (slot) => !slotsToBlock.includes(slot)
-    );
-    await workingHours.save();
+    // Add error handling for missing working hours
+    if (!staffWorkingHours) {
+        throw new ApiError(
+            httpStatus.INTERNAL_SERVER_ERROR,
+            `Staff ${selectedStaff.name} has no working hours initialized for ${bookingData.appointmentDate}`
+        );
+    }
 
-    // Assign a staff member to the booking
-    bookingData.assignedStaff = defaultStaff._id;
+    // Validate slot availability
+    if (!staffWorkingHours.availableSlots.includes(serviceStartingTime)) {
+        throw new ApiError(
+            httpStatus.BAD_REQUEST,
+            `Selected time slot ${serviceStartingTime} is not available for ${selectedStaff.name}`
+        );
+    }
 
-    // Create the booking
+    // Create the booking first
     const newBooking = await Booking.create(bookingData);
 
-    // Update the staff's assigned bookings
-    defaultStaff.assignedBookings.push(newBooking._id);
-    await defaultStaff.save();
+    // Calculate slotsToBlock using the model-generated end time
+    const startTime = parseAMPM(newBooking.serviceStartingTime);
+    const endTime = parseAMPM(newBooking.bookingEndTime);
+    const slotsToBlock = [];
+    
+    let currentTime = new Date(startTime);
+    while (currentTime <= endTime) { // Use <= to include end time
+        slotsToBlock.push(formatAMPM(currentTime));
+        currentTime.setMinutes(currentTime.getMinutes() + 30);
+    }
+
+    // Mark all affected slots as unavailable
+    staffWorkingHours.unavailableSlots.push(...slotsToBlock);
+    staffWorkingHours.availableSlots = staffWorkingHours.availableSlots.filter(
+        slot => !slotsToBlock.includes(slot)
+    );
+    await staffWorkingHours.save();
+
+    // Update user's assigned bookings
+    await User.findByIdAndUpdate(selectedStaff._id, {
+        $push: { assignedBookings: newBooking._id }
+    });
 
     // Fetch service information for email templates
     const serviceInfo = await Service.find({ _id: { $in: service_ids } });
@@ -292,9 +375,9 @@ const createBooking = async (bookingData) => {
 
     const staffEmailOptions = {
         from: process.env.EMAIL_USER,
-        to: defaultStaff.email,
+        to: selectedStaff.email,
         subject: 'New Booking Assigned',
-        html: staffNotificationTemplate(newBooking, defaultStaff, serviceInfo, calculatedBookingEndTime, addOnInfo),
+        html: staffNotificationTemplate(newBooking, selectedStaff, serviceInfo, calculatedBookingEndTime, addOnInfo),
     };
 
     try {
@@ -310,6 +393,23 @@ const createBooking = async (bookingData) => {
     } catch (error) {
         console.error('Failed to send staff email:', error);
     }
+
+    // Call this after successful booking creation
+    await updateGlobalAvailability(bookingData.appointmentDate, bookingData.serviceStartingTime);
+
+    console.log(`Assigned booking to staff ${selectedStaff._id}`);
+    console.log('Current staff assignments:', {
+        staff1: {
+            id: availableStaff[0]._id,
+            bookings: availableStaff[0].assignedBookings.length,
+            index: availableStaff[0].lastAssignedIndex
+        },
+        staff2: availableStaff[1] ? {
+            id: availableStaff[1]._id,
+            bookings: availableStaff[1].assignedBookings.length,
+            index: availableStaff[1].lastAssignedIndex
+        } : null
+    });
 
     return newBooking;
 };
@@ -715,6 +815,40 @@ const getDeletedBookings = async () => {
     }
 
     return deletedBookings;
+};
+
+const rotateStaffAssignment = async () => {
+    // Reset rotation index daily for staff users
+    await User.updateMany(
+        { role: 'staff' }, 
+        { $set: { lastAssignedIndex: 0 } }
+    );
+};
+
+const updateGlobalAvailability = async (date, timeSlot) => {
+    const bookingDate = new Date(date);
+    const allStaffHours = await WorkingHours.find({
+        date: bookingDate,
+        staff: { $exists: true }
+    });
+
+    // Check if ALL staff have this slot marked as unavailable
+    const allBooked = allStaffHours.every(wh => 
+        wh.unavailableSlots.includes(timeSlot) || wh.dayOff
+    );
+
+    if (allBooked) {
+        await WorkingHours.updateOne(
+            { date: bookingDate, staff: { $exists: false } },
+            { $addToSet: { unavailableSlots: timeSlot } }
+        );
+    } else {
+        // Remove from global unavailable if any staff becomes available
+        await WorkingHours.updateOne(
+            { date: bookingDate, staff: { $exists: false } },
+            { $pull: { unavailableSlots: timeSlot } }
+        );
+    }
 };
 
 module.exports = {

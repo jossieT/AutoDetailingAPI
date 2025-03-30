@@ -125,10 +125,8 @@ bookingSchema.pre('save', async function (next) {
 
 
             // Combine service and add-on durations
-        const totalDuration = serviceDuration + addOnDuration;
+        const totalDuration = serviceDuration + addOnDuration + 60; // Add 60 minutes buffer
         
-        // Add one hour (60 minutes) to the total duration
-
         // Calculate booking end time
         const bookingEnd = new Date(bookingStart.getTime() + totalDuration * 60 * 1000);
 
@@ -146,9 +144,22 @@ bookingSchema.pre('save', function (next) {
 
 bookingSchema.pre('save', async function (next) {
     if (!this.assignedTo) { 
-        const staff = await mongoose.model('User').findOne({ role: 'staff' }); // Find the single staff user
-        if (staff) {
-            this.assignedTo = staff._id; // Assign staff ID to assignedTo
+        // Try to find any available staff first
+        const availableStaff = await mongoose.model('User').findOne({ 
+            role: 'staff',
+            'workingHours.date': this.appointmentDate,
+            'workingHours.dayOff': false
+        });
+        
+        if (availableStaff) {
+            this.assignedTo = availableStaff._id;
+        } else {
+            // Fallback to admin if no staff found
+            const admin = await mongoose.model('User').findOne({ role: 'admin' });
+            if (admin) {
+                this.assignedTo = admin._id;
+                console.warn('Assigned booking to admin as fallback');
+            }
         }
     }
     next();
