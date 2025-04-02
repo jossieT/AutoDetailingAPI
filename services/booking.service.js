@@ -112,6 +112,22 @@ const getAvailableSlots = async (date) => {
         })
     ]);
 
+    // Log detailed staff availability
+    console.log(`\n=== Staff Availability for ${date} ===`);
+    staffWorkingHours.forEach(wh => {
+        const staffName = wh.staff?.name || `Staff ${wh.staff?._id || 'Unknown'}`;
+        console.log(`\nStaff Member: ${staffName}`);
+        console.log(`- Day Off: ${wh.dayOff ? 'Yes' : 'No'}`);
+        
+        if (!wh.dayOff) {
+            console.log(`- Available Slots (${wh.availableSlots.length}):`);
+            console.log(`  ${wh.availableSlots.join(', ')}`);
+            console.log(`- Unavailable Slots (${wh.unavailableSlots.length}):`);
+            console.log(`  ${wh.unavailableSlots.join(', ') || 'None'}`);
+        }
+    });
+    console.log('===================================\n');
+
     // Combine available slots from all staff
     const allAvailableSlots = staffWorkingHours
         .filter(wh => !wh.dayOff)
@@ -196,20 +212,30 @@ const getAvailableStaff = async (date, timeSlot) => {
     return availableStaff;
 };
 
-const selectStaffMember = async (availableStaff) => {
+const selectStaffMember = async (availableStaff, appointmentDate) => {
     if (availableStaff.length === 0) return null;
     
-    // Sort by booking count and rotation index
+    // Sort by number of daily bookings then rotation index
     const sortedStaff = availableStaff.sort((a, b) => {
-        const bookingDiff = a.assignedBookings.length - b.assignedBookings.length;
+        // Count bookings for this specific date
+        const aDailyBookings = a.assignedBookings.filter(booking => 
+            booking.appointmentDate.toISOString() === new Date(appointmentDate).toISOString()
+        ).length;
+        
+        const bDailyBookings = b.assignedBookings.filter(booking => 
+            booking.appointmentDate.toISOString() === new Date(appointmentDate).toISOString()
+        ).length;
+
+        const bookingDiff = aDailyBookings - bDailyBookings;
+        
         if (bookingDiff !== 0) return bookingDiff;
         return a.lastAssignedIndex - b.lastAssignedIndex;
     });
 
-    // Select first in sorted list
+    // Rest of the logic remains the same
     const selectedStaff = sortedStaff[0];
     
-    // Update rotation index atomically
+    // Atomic update and return
     await User.findByIdAndUpdate(selectedStaff._id, { 
         $inc: { lastAssignedIndex: 1 },
         $set: { lastAssignedAt: new Date() }
@@ -221,7 +247,8 @@ const selectStaffMember = async (availableStaff) => {
 
 // Create a new bookings
 const createBooking = async (bookingData) => {
-    //await initializeWorkingHours(bookingData.appointmentDate);
+    // Ensure working hours are initialized for booking date
+    await initializeWorkingHours(bookingData.appointmentDate);
 
     const { appointmentDate, serviceStartingTime, vehicleDetails, service_ids, selectedAddOns } = bookingData;
 
@@ -311,7 +338,7 @@ const createBooking = async (bookingData) => {
         throw new ApiError(httpStatus.BAD_REQUEST, 'No available staff for the selected time slot');
     }
 
-    const selectedStaff = await selectStaffMember(availableStaff);
+    const selectedStaff = await selectStaffMember(availableStaff, bookingData.appointmentDate);
     
     if (!selectedStaff) {
         throw new ApiError(httpStatus.BAD_REQUEST, 'No available staff for the selected time slot');
@@ -841,18 +868,31 @@ const updateGlobalAvailability = async (date, timeSlot) => {
         staff: { $exists: true }
     });
 
-    // Check if ALL staff have this slot marked as unavailable
-    const allBooked = allStaffHours.every(wh => 
-        wh.unavailableSlots.includes(timeSlot) || wh.dayOff
+    // Consider only staff not on day off
+    const availableStaffHours = allStaffHours.filter(wh => !wh.dayOff);
+    
+    // If no staff available, mark slot as unavailable
+    if (availableStaffHours.length === 0) {
+        await WorkingHours.updateOne(
+            { date: bookingDate, staff: { $exists: false } },
+            { $addToSet: { unavailableSlots: timeSlot } },
+            { upsert: true }
+        );
+        return;
+    }
+
+    // Check if all available staff have slot blocked
+    const allBooked = availableStaffHours.every(wh => 
+        wh.unavailableSlots.includes(timeSlot)
     );
 
     if (allBooked) {
         await WorkingHours.updateOne(
             { date: bookingDate, staff: { $exists: false } },
-            { $addToSet: { unavailableSlots: timeSlot } }
+            { $addToSet: { unavailableSlots: timeSlot } },
+            { upsert: true }
         );
     } else {
-        // Remove from global unavailable if any staff becomes available
         await WorkingHours.updateOne(
             { date: bookingDate, staff: { $exists: false } },
             { $pull: { unavailableSlots: timeSlot } }

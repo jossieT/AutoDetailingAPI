@@ -86,6 +86,11 @@ userSchema.post('save', function(doc) {
     }
 });
 
+// Add index for faster date filtering
+userSchema.index({
+    'assignedBookings.appointmentDate': 1
+});
+
 const User = mongoose.model('User', userSchema);
 
 module.exports = User;
