@@ -152,13 +152,16 @@ const getAvailableSlots = async (date) => {
             return hoursIn24 * 60 + parseInt(minutes);
         };
 
-        const startBoundary = timeToMinutes('06:00 AM'); // Start of range
-        const endBoundary = timeToMinutes('04:30 PM');  // End of range
+        const startBoundary = timeToMinutes('06:00 AM');
+        const endBoundary = timeToMinutes('04:30 PM');
 
-        return slots.filter((slot) => {
+        const filtered = slots.filter((slot) => {
             const slotInMinutes = timeToMinutes(slot);
             return slotInMinutes >= startBoundary && slotInMinutes <= endBoundary;
         });
+
+        // Sort slots in ascending order
+        return filtered.sort((a, b) => timeToMinutes(a) - timeToMinutes(b));
     };
 
     return filterSlots(uniqueSlots);
