@@ -26,10 +26,12 @@ const workingHoursSchema = new mongoose.Schema({
     partialDayOff: [partialDayOffSchema] // Array of partial day-offs
 });
 
-// Remove any existing index definitions
+// Update the index definition
 workingHoursSchema.index({ date: 1, staff: 1 }, { 
     unique: true,
-    partialFilterExpression: { staff: { $exists: true } }
+    partialFilterExpression: { 
+        staff: { $exists: true } 
+    }
 });
 
 const WorkingHours = mongoose.model('WorkingHours', workingHoursSchema);
