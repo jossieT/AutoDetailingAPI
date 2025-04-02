@@ -319,7 +319,11 @@ const createBooking = async (bookingData) => {
     if (!isAvailable) {
         throw new ApiError(
             httpStatus.BAD_REQUEST,
-            'Selected time slots conflict with existing bookings or unavailable periods'
+            'The selected time duration requires more consecutive availability than currently available. ' +
+            'Please choose either:\n' +
+            '1. A shorter service duration\n' +
+            '2. A different time slot with sufficient availability\n' +
+            '3. Another date with more open time slots'
         );
     }
 
