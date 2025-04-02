@@ -316,16 +316,29 @@ const createBooking = async (bookingData) => {
     const isAvailable = validationSlots.every(
         (slot) => workingHours.availableSlots.includes(slot) && !workingHours.unavailableSlots.includes(slot)
     );
-    //if (!isAvailable) throw new ApiError(httpStatus.BAD_REQUEST, 'One or more requested slots are unavailable.');
+    if (!isAvailable) {
+        throw new ApiError(
+            httpStatus.BAD_REQUEST,
+            'Selected time slots conflict with existing bookings or unavailable periods'
+        );
+    }
 
     // Automatic staff assignment
     const availableStaff = await getAvailableStaff(bookingData.appointmentDate, bookingData.serviceStartingTime);
     
     if (availableStaff.length === 0) {
+        // Block slots globally when no staff available
+        await Promise.all(validationSlots.map(slot => 
+            updateGlobalAvailability(bookingData.appointmentDate, slot)
+        ));
+
         console.error('No available staff due to:');
         console.error('- Day off status:', availableStaff.map(s => s.workingHours[0]?.dayOff));
         console.error('- Existing bookings:', availableStaff.map(s => s.assignedBookings));
-        throw new ApiError(httpStatus.BAD_REQUEST, 'No available staff for the selected time slot');
+        throw new ApiError(
+            httpStatus.BAD_REQUEST,
+            'No available staff for selected time slot - This time period has been blocked for future bookings'
+        );
     }
 
     const selectedStaff = await selectStaffMember(availableStaff, bookingData.appointmentDate);
