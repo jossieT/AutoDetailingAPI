@@ -215,33 +215,20 @@ const getAvailableStaff = async (date, timeSlot) => {
 const selectStaffMember = async (availableStaff, appointmentDate) => {
     if (availableStaff.length === 0) return null;
     
-    // Sort by number of daily bookings then rotation index
+    // Sort by rotation index only for fair distribution
     const sortedStaff = availableStaff.sort((a, b) => {
-        // Count bookings for this specific date
-        const aDailyBookings = a.assignedBookings.filter(booking => 
-            booking.appointmentDate.toISOString() === new Date(appointmentDate).toISOString()
-        ).length;
-        
-        const bDailyBookings = b.assignedBookings.filter(booking => 
-            booking.appointmentDate.toISOString() === new Date(appointmentDate).toISOString()
-        ).length;
-
-        const bookingDiff = aDailyBookings - bDailyBookings;
-        
-        if (bookingDiff !== 0) return bookingDiff;
         return a.lastAssignedIndex - b.lastAssignedIndex;
     });
 
     // Rest of the logic remains the same
     const selectedStaff = sortedStaff[0];
     
-    // Atomic update and return
+    // Update rotation index atomically
     await User.findByIdAndUpdate(selectedStaff._id, { 
         $inc: { lastAssignedIndex: 1 },
         $set: { lastAssignedAt: new Date() }
     });
 
-    console.log(`Assigned to ${selectedStaff.name} (Bookings: ${selectedStaff.assignedBookings.length}, Index: ${selectedStaff.lastAssignedIndex})`);
     return selectedStaff;
 };
 
@@ -326,7 +313,7 @@ const createBooking = async (bookingData) => {
     const isAvailable = validationSlots.every(
         (slot) => workingHours.availableSlots.includes(slot) && !workingHours.unavailableSlots.includes(slot)
     );
-    if (!isAvailable) throw new ApiError(httpStatus.BAD_REQUEST, 'One or more requested slots are unavailable.');
+    //if (!isAvailable) throw new ApiError(httpStatus.BAD_REQUEST, 'One or more requested slots are unavailable.');
 
     // Automatic staff assignment
     const availableStaff = await getAvailableStaff(bookingData.appointmentDate, bookingData.serviceStartingTime);
