@@ -212,7 +212,7 @@ const selectStaffMember = async (availableStaff) => {
 
 // Create a new bookings
 const createBooking = async (bookingData) => {
-    await initializeWorkingHours(bookingData.appointmentDate);
+    //await initializeWorkingHours(bookingData.appointmentDate);
 
     const { appointmentDate, serviceStartingTime, vehicleDetails, service_ids, selectedAddOns } = bookingData;
 
