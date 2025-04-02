@@ -46,13 +46,15 @@ const initializeWorkingHours = async (date) => {
     const bookingDate = new Date(date);
     const allStaff = await User.find({ role: 'staff' });
 
+    console.log(`Found ${allStaff.length} staff members to initialize working hours for ${date}`);
+
     await Promise.all(allStaff.map(async (staff) => {
+        const staffId = staff._id;
         try {
-            // Create or update working hours
             const wh = await WorkingHours.findOneAndUpdate(
                 { 
                     date: bookingDate,
-                    staff: staff._id 
+                    staff: staffId 
                 },
                 {
                     $setOnInsert: {
@@ -67,24 +69,31 @@ const initializeWorkingHours = async (date) => {
                 }
             );
 
-            // Update user's workingHours array if needed
+            console.log(`Successfully ${wh.isNew ? 'initialized' : 'updated'} working hours for staff ${staffId}`);
+
             if (!staff.workingHours.includes(wh._id)) {
                 await User.findByIdAndUpdate(
-                    staff._id,
+                    staffId,
                     { $addToSet: { workingHours: wh._id } },
                     { new: true }
                 );
-                console.log(`Updated working hours for staff ${staff._id}`);
+                console.log(`Added working hours reference to staff ${staffId} profile`);
             }
         } catch (error) {
-            console.error(`Error initializing hours for staff ${staff._id}:`, error);
+            console.error(`Failed to initialize working hours for staff ${staffId}:`);
+            console.error(`- Error code: ${error.code || 'N/A'}`);
+            console.error(`- Error message: ${error.message}`);
+            console.error(`- Stack trace: ${error.stack}`);
+            
             if (error.code === 11000) {
-                console.log('Duplicate key error - working hours already exist');
+                console.log(`- Reason: Working hours already exist for staff ${staffId} on ${date}`);
+            } else {
+                console.log(`- Reason: Unexpected error during database operation`);
             }
         }
     }));
 
-    console.log('Working hours initialization complete for', date);
+    console.log(`Completed working hours initialization for ${date}`);
     return true;
 };
 
