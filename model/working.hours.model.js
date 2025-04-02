@@ -34,6 +34,9 @@ workingHoursSchema.index({ date: 1, staff: 1 }, {
     }
 });
 
+// Add this line to prevent default index on date
+workingHoursSchema.index({ date: 1 }, { unique: false });  // Non-unique date index
+
 const WorkingHours = mongoose.model('WorkingHours', workingHoursSchema);
 
 module.exports = WorkingHours;
