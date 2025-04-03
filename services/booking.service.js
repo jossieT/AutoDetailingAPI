@@ -176,42 +176,38 @@ const getAvailableStaff = async (date, timeSlot) => {
             path: 'workingHours',
             match: { date: bookingDate }
         })
-        .populate('assignedBookings');
+        .populate({
+            path: 'assignedBookings',
+            match: { 
+                appointmentDate: bookingDate,
+                status: { $ne: 'cancelled' }
+            }
+        });
 
-    // 2. Filter available staff with debug logging
+    // 2. Filter available staff with enhanced conflict check
     const availableStaff = allStaff.filter(user => {
-        // Debug log staff details
-        console.log(`Checking availability for staff: ${user._id}`);
-        console.log('Working Hours:', user.workingHours);
-        
         const workingHour = user.workingHours.find(wh => 
             wh.date.getTime() === bookingDate.getTime()
         );
         
-        if (!workingHour) {
-            console.log(`No working hours found for ${user._id} on ${bookingDate}`);
-            return false;
-        }
+        // Basic availability checks
+        if (!workingHour || workingHour.dayOff) return false;
         
-        if (workingHour.dayOff) {
-            console.log(`Staff ${user._id} is on day off`);
-            return false;
-        }
-
+        // Enhanced time slot conflict check
         const hasConflict = user.assignedBookings.some(booking => {
-            const sameDate = booking.appointmentDate.getTime() === bookingDate.getTime();
-            const sameSlot = booking.serviceStartingTime === timeSlot;
-            return sameDate && sameSlot;
+            const bookingStart = parseAMPM(booking.serviceStartingTime);
+            const bookingEnd = new Date(bookingStart.getTime() + booking.totalDuration * 60000);
+            const newBookingStart = parseAMPM(timeSlot);
+            const newBookingEnd = new Date(newBookingStart.getTime() + bookingData.totalDuration * 60000);
+            
+            // Check for time overlap
+            return (newBookingStart < bookingEnd && newBookingEnd > bookingStart);
         });
-
-        if (hasConflict) {
-            console.log(`Staff ${user._id} has conflict at ${timeSlot}`);
-        }
 
         return !hasConflict;
     });
 
-    console.log(`Available staff count: ${availableStaff.length}`);
+    console.log('Available Staff IDs:', availableStaff.map(s => s._id));
     return availableStaff;
 };
 
@@ -327,10 +323,17 @@ const createBooking = async (bookingData) => {
         );
     }
 
-    // Automatic staff assignment
+    // After slot validation
+    console.log('Validating staff availability for slots:', validationSlots);
     const availableStaff = await getAvailableStaff(bookingData.appointmentDate, bookingData.serviceStartingTime);
     
     if (availableStaff.length === 0) {
+        console.error('No available staff details:');
+        console.error('- All staff:', allStaff.map(s => ({
+            id: s._id,
+            dayOff: s.workingHours?.[0]?.dayOff,
+            bookings: s.assignedBookings.map(b => b.serviceStartingTime)
+        })));
         // Block slots globally when no staff available
         await Promise.all(validationSlots.map(slot => 
             updateGlobalAvailability(bookingData.appointmentDate, slot)
