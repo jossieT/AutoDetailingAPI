@@ -15,7 +15,8 @@ const workingHoursSchema = new mongoose.Schema({
     staff: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
-        default: null
+        index: true,
+        default: null // Explicit null for global entries
     },
     availableSlots: [String], // Time slots in AM/PM format
     unavailableSlots: [String], // Booked or blocked slots
@@ -23,7 +24,20 @@ const workingHoursSchema = new mongoose.Schema({
         type: Boolean, 
         default: false 
     },
-    partialDayOff: [partialDayOffSchema] // Array of partial day-offs
+    partialDayOff: [partialDayOffSchema], // Array of partial day-offs
+}, { 
+    timestamps: true,
+    // Add compound index with sparse option
+    index: [
+        { 
+            date: 1, 
+            staff: 1 
+        }, 
+        { 
+            unique: true, 
+            partialFilterExpression: { staff: { $type: "objectId" } } 
+        }
+    ]
 });
 
 // Update the index definition

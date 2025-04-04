@@ -44,6 +44,21 @@ const generateTimeSlots = (startTime, endTime, intervalMinutes) => {
 
 const initializeWorkingHours = async (date) => {
     const bookingDate = new Date(date);
+    
+    // Initialize global working hours first
+    await WorkingHours.findOneAndUpdate(
+        { date: bookingDate, staff: { $exists: false } },
+        {
+            $setOnInsert: {
+                availableSlots: [],
+                unavailableSlots: [],
+                dayOff: false
+            }
+        },
+        { upsert: true, new: true }
+    );
+
+    // Then initialize staff working hours
     const allStaff = await User.find({ role: 'staff' });
 
     console.log(`Found ${allStaff.length} staff members to initialize working hours for ${date}`);
@@ -167,297 +182,381 @@ const getAvailableSlots = async (date) => {
     return filterSlots(uniqueSlots);
 };
 
-const getAvailableStaff = async (date, timeSlot) => {
+const getAvailableStaff = async (date, validationSlots) => {
     const bookingDate = new Date(date);
     
-    // 1. Get all staff users not on day off
+    console.log(`\n=== [${new Date().toISOString()}] Staff Availability Check ===`);
+    console.log(`Requested Date: ${date}`);
+    console.log(`Required Time Slots (${validationSlots.length}):`, validationSlots.join(', '));
+
     const allStaff = await User.find({ role: 'staff' })
         .populate({
             path: 'workingHours',
             match: { date: bookingDate }
         })
-        .populate({
-            path: 'assignedBookings',
-            match: { 
-                appointmentDate: bookingDate,
-                status: { $ne: 'cancelled' }
-            }
-        });
+        .populate('assignedBookings');
 
-    // 2. Filter available staff with enhanced conflict check
-    const availableStaff = allStaff.filter(user => {
-        const workingHour = user.workingHours.find(wh => 
-            wh.date.getTime() === bookingDate.getTime()
+    console.log(`Evaluating ${allStaff.length} staff members:`);
+
+    const availableStaff = allStaff.filter(staff => {
+        console.log(`\n--- Staff ${staff._id} ---`);
+        
+        const wh = staff.workingHours.find(w => 
+            w.date.getTime() === bookingDate.getTime()
         );
         
-        // Basic availability checks
-        if (!workingHour || workingHour.dayOff) return false;
-        
-        // Enhanced time slot conflict check
-        const hasConflict = user.assignedBookings.some(booking => {
+        // 1. Basic Availability Check
+        if (!wh) {
+            console.log('❌ Excluded - No working hours record for this date');
+            return false;
+        }
+        if (wh.dayOff) {
+            console.log('❌ Excluded - Marked as day off');
+            return false;
+        }
+
+        // Enhanced slot availability check
+        const hasAllSlots = validationSlots.every(slot => 
+            wh.availableSlots.includes(slot) && 
+            !wh.unavailableSlots.includes(slot)
+        );
+
+        if (!hasAllSlots) {
+            const missing = validationSlots.filter(s => 
+                !wh.availableSlots.includes(s) || 
+                wh.unavailableSlots.includes(s)
+            );
+            console.log(`Missing slots: ${missing.join(', ')}`);
+            return false;
+        }
+
+        // 3. Booking Conflict Detection
+        const conflicts = staff.assignedBookings.filter(booking => {
             const bookingStart = parseAMPM(booking.serviceStartingTime);
             const bookingEnd = new Date(bookingStart.getTime() + booking.totalDuration * 60000);
-            const newBookingStart = parseAMPM(timeSlot);
-            const newBookingEnd = new Date(newBookingStart.getTime() + bookingData.totalDuration * 60000);
+            const newStart = parseAMPM(validationSlots[0]);
+            const newEnd = parseAMPM(validationSlots[validationSlots.length - 1]);
             
-            // Check for time overlap
-            return (newBookingStart < bookingEnd && newBookingEnd > bookingStart);
+            return (newStart < bookingEnd && newEnd > bookingStart);
         });
 
-        return !hasConflict;
+        if (conflicts.length > 0) {
+            console.log(`❌ Time conflicts with ${conflicts.length} existing bookings:`);
+            conflicts.forEach(c => console.log(`   - ${c.serviceStartingTime} (ID: ${c._id})`));
+            return false;
+        }
+
+        console.log('✅ Meets all availability requirements');
+        return true;
     });
 
-    console.log('Available Staff IDs:', availableStaff.map(s => s._id));
+    console.log('\n=== Availability Summary ===');
+    console.log(`Eligible Staff: ${availableStaff.length}`);
+    availableStaff.forEach(s => console.log(`- ${s._id}`));
+    
     return availableStaff;
 };
 
-const selectStaffMember = async (availableStaff, appointmentDate) => {
-    if (availableStaff.length === 0) return null;
+const selectStaffMember = async (availableStaff) => {
+    console.log(`\n=== [${new Date().toISOString()}] Staff Selection Process ===`);
     
-    // Sort by rotation index only for fair distribution
-    const sortedStaff = availableStaff.sort((a, b) => {
-        return a.lastAssignedIndex - b.lastAssignedIndex;
+    if (availableStaff.length === 0) {
+        console.log('⚠️ No eligible staff found');
+        return null;
+    }
+
+    console.log('Candidate Staff:');
+    availableStaff.forEach(staff => {
+        console.log(`- ${staff._id}`);
+        console.log(`  Rotation Index: ${staff.lastAssignedIndex}`);
+        console.log(`  Last Assigned: ${staff.lastAssignedAt || 'Never'}`);
     });
 
-    // Rest of the logic remains the same
+    // Daily rotation reset at midnight
+    const now = new Date();
+    if (now.getHours() === 0 && now.getMinutes() < 1) {
+        console.log('🔄 Resetting daily rotation indexes');
+        await User.updateMany({ role: 'staff' }, { $set: { lastAssignedIndex: 0 } });
+    }
+
+    // Sort by rotation index and assignment time
+    const sortedStaff = availableStaff.sort((a, b) => {
+        const indexDiff = a.lastAssignedIndex - b.lastAssignedIndex;
+        if (indexDiff !== 0) return indexDiff;
+        return a.lastAssignedAt - b.lastAssignedAt;
+    });
+
+    console.log('\nSorted Candidates:');
+    sortedStaff.forEach((staff, index) => {
+        console.log(`${index + 1}. ${staff._id}`);
+        console.log(`   Rotation Index: ${staff.lastAssignedIndex}`);
+        console.log(`   Last Assignment: ${staff.lastAssignedAt || 'Never'}`);
+    });
+
     const selectedStaff = sortedStaff[0];
+    console.log(`\n🎯 Selected Staff: ${selectedStaff._id}`);
+    console.log(`   Reason: ${sortedStaff.length > 1 ? 
+        'Lowest rotation index and earliest last assignment' : 
+        'Only available staff'}`);
     
-    // Update rotation index atomically
-    await User.findByIdAndUpdate(selectedStaff._id, { 
+    // Update rotation index
+    const newIndex = selectedStaff.lastAssignedIndex + 1;
+    await User.findByIdAndUpdate(selectedStaff._id, {
         $inc: { lastAssignedIndex: 1 },
         $set: { lastAssignedAt: new Date() }
     });
+    console.log(`🆕 Updated rotation index: ${selectedStaff.lastAssignedIndex} → ${newIndex}`);
 
     return selectedStaff;
 };
 
 // Create a new bookings
 const createBooking = async (bookingData) => {
-    // Ensure working hours are initialized for booking date
-    await initializeWorkingHours(bookingData.appointmentDate);
+    try {
+        // Ensure working hours are initialized for booking date
+        await initializeWorkingHours(bookingData.appointmentDate);
 
-    const { appointmentDate, serviceStartingTime, vehicleDetails, service_ids, selectedAddOns } = bookingData;
+        const { appointmentDate, serviceStartingTime, vehicleDetails, service_ids, selectedAddOns } = bookingData;
 
-   
-    
-    
-    // const { error } = validateBookingData(bookingData);
-    // if (error) {
-    //     throw new ApiError(httpStatus.BAD_REQUEST, error.details.map(err => err.message).join(', '));
-    // }
-    // Validate required fields
-    // if (!bookingData.vehicleDetails || !bookingData.vehicleDetails.carType) {
-    //     throw new ApiError(httpStatus.BAD_REQUEST, 'Vehicle type (SUV or AUTO) must be specified for booking.');
-    // }
+        const workingHours = await WorkingHours.findOne({ date: new Date(appointmentDate) });
 
-    // if (!service_ids || service_ids.length === 0) {
-    //     throw new ApiError(httpStatus.BAD_REQUEST, 'At least one service must be selected.');
-    // }
+        if (!workingHours) throw new ApiError(httpStatus.NOT_FOUND, 'Working hours not initialized for the selected date.');
 
-    const workingHours = await WorkingHours.findOne({ date: new Date(appointmentDate) });
+        if (workingHours.dayOff) throw new ApiError(httpStatus.BAD_REQUEST, 'No bookings allowed on a full day off.');
 
-    if (!workingHours) throw new ApiError(httpStatus.NOT_FOUND, 'Working hours not initialized for the selected date.');
-
-    if (workingHours.dayOff) throw new ApiError(httpStatus.BAD_REQUEST, 'No bookings allowed on a full day off.');
-
-    if (workingHours.partialDayOff.includes(serviceStartingTime)) {
-        throw new ApiError(httpStatus.BAD_REQUEST, 'Selected time slot falls within a partial day-off.');
-    }
-
-
-
-    // Calculate bookingEndTime based on selected services and vehicle type
-    const bookingStart = parseAMPM(serviceStartingTime);
-
-    // Populate service details to calculate the duration
-    const services = await Service.find({ _id: { $in: service_ids } }, 'duration');
-    const addOns = await AddOnService.find({ _id: { $in: bookingData.selectedAddOns } }, 'duration');
-
-    let totalDuration = 0;
-    const serviceDuration = services.reduce((total, service) => {
-        if (!service.duration || !service.duration[vehicleDetails.carType]) {
-            throw new ApiError(httpStatus.BAD_REQUEST, `Service ${service.name} does not have a duration for ${bookingData.vehicleDetails.carType}.`);
+        if (workingHours.partialDayOff.includes(serviceStartingTime)) {
+            throw new ApiError(httpStatus.BAD_REQUEST, 'Selected time slot falls within a partial day-off.');
         }
-        return total + service.duration[vehicleDetails.carType];
-    }, 0);
 
-    totalDuration += serviceDuration;
+        // Calculate bookingEndTime based on selected services and vehicle type
+        const bookingStart = parseAMPM(serviceStartingTime);
 
-    const addOnDuration = addOns.reduce((total, addOn) => {
-        if (!addOn.duration) {
-            throw new ApiError(httpStatus.BAD_REQUEST, `Add-On ${addOn.name} does not have a duration.`);
+        // Populate service details to calculate the duration
+        const services = await Service.find({ _id: { $in: service_ids } }, 'duration');
+        const addOns = await AddOnService.find({ _id: { $in: bookingData.selectedAddOns } }, 'duration');
+
+        let totalDuration = 0;
+        const serviceDuration = services.reduce((total, service) => {
+            if (!service.duration || !service.duration[vehicleDetails.carType]) {
+                throw new ApiError(httpStatus.BAD_REQUEST, `Service ${service.name} does not have a duration for ${bookingData.vehicleDetails.carType}.`);
+            }
+            return total + service.duration[vehicleDetails.carType];
+        }, 0);
+
+        totalDuration += serviceDuration;
+
+        const addOnDuration = addOns.reduce((total, addOn) => {
+            if (!addOn.duration) {
+                throw new ApiError(httpStatus.BAD_REQUEST, `Add-On ${addOn.name} does not have a duration.`);
+            }
+            return total + addOn.duration;
+        }, 0);
+
+        if (selectedAddOns) {
+            totalDuration += addOnDuration;
         }
-        return total + addOn.duration;
-    }, 0);
 
-    if (selectedAddOns) {
-        totalDuration += addOnDuration;
-    }
+        // Generate the time range to block (serviceStartingTime to bookingEndTime + 1 hour)
+        const bookingEnd = new Date(bookingStart.getTime() + totalDuration * 60 * 1000);
+        const extendedEnd = new Date(bookingEnd.getTime() + 1 * 60 * 60 * 1000);
 
+        // Generate slotsToBlock before validation
+        const validationSlots = [];
+        let validationCurrentTime = new Date(bookingStart);
+        while (validationCurrentTime < bookingEnd) {
+            validationSlots.push(formatAMPM(validationCurrentTime));
+            validationCurrentTime.setMinutes(validationCurrentTime.getMinutes() + 30);
+        }
 
+        // Then validate slot availability
+        // const isAvailable = validationSlots.every(
+        //     (slot) => workingHours.availableSlots.includes(slot) && !workingHours.unavailableSlots.includes(slot)
+        // );
+        // if (!isAvailable) {
+        //     throw new ApiError(
+        //         httpStatus.BAD_REQUEST,
+        //         'The selected time duration requires more consecutive availability than currently available. ' +
+        //         'Please choose either:\n' +
+        //         '1. A shorter service duration\n' +
+        //         '2. A different time slot with sufficient availability\n' +
+        //         '3. Another date with more open time slots'
+        //     );
+        // }
 
-    // Generate the time range to block (serviceStartingTime to bookingEndTime + 1 hour)
-    const bookingEnd = new Date(bookingStart.getTime() + totalDuration * 60 * 1000);
-    const extendedEnd = new Date(bookingEnd.getTime() + 1 * 60 * 60 * 1000);
+        // After slot validation
+        console.log('Validating staff availability for slots:', validationSlots);
+        const availableStaff = await getAvailableStaff(bookingData.appointmentDate, validationSlots);
+        
+        if (availableStaff.length === 0) {
+            // Detailed conflict analysis
+            const conflictCheckStaff = await User.find({ role: 'staff' })
+                .populate('workingHours')
+                .populate('assignedBookings');
 
-    // Generate slotsToBlock before validation
-    const validationSlots = [];
-    let validationCurrentTime = new Date(bookingStart);
-    while (validationCurrentTime < bookingEnd) {
-        validationSlots.push(formatAMPM(validationCurrentTime));
-        validationCurrentTime.setMinutes(validationCurrentTime.getMinutes() + 30);
-    }
+            console.log('\n=== Conflict Analysis ===');
+            let conflictMessages = [];
+            
+            conflictCheckStaff.forEach(staff => {
+                const wh = staff.workingHours.find(w => 
+                    w.date.getTime() === new Date(bookingData.appointmentDate).getTime()
+                );
+                
+                if (!wh || wh.dayOff) {
+                    conflictMessages.push(`Staff ${staff._id}: Unavailable (${wh ? 'day off' : 'no working hours'})`);
+                    return;
+                }
 
-    // Then validate slot availability
-    const isAvailable = validationSlots.every(
-        (slot) => workingHours.availableSlots.includes(slot) && !workingHours.unavailableSlots.includes(slot)
-    );
-    if (!isAvailable) {
-        throw new ApiError(
-            httpStatus.BAD_REQUEST,
-            'The selected time duration requires more consecutive availability than currently available. ' +
-            'Please choose either:\n' +
-            '1. A shorter service duration\n' +
-            '2. A different time slot with sufficient availability\n' +
-            '3. Another date with more open time slots'
+                const availableSlots = wh.availableSlots.filter(s => 
+                    !wh.unavailableSlots.includes(s)
+                );
+                const overlap = validationSlots.filter(s => availableSlots.includes(s));
+                
+                if (overlap.length === 0) {
+                    conflictMessages.push(`Staff ${staff._id}: No overlapping slots available`);
+                } else {
+                    conflictMessages.push(
+                        `Staff ${staff._id}: Only ${overlap.length}/${validationSlots.length} slots available ` +
+                        `(${overlap.join(', ')})`
+                    );
+                }
+            });
+
+            throw new ApiError(
+                httpStatus.BAD_REQUEST,
+                'No available staff for the selected time period. Reasons:\n' +
+                conflictMessages.join('\n') + '\n\n' +
+                'Please try:\n' +
+                '1. A shorter service duration\n' +
+                '2. A different time slot\n' +
+                '3. Another date'
+            );
+        }
+
+        const selectedStaff = await selectStaffMember(availableStaff);
+        
+        if (!selectedStaff) {
+            throw new ApiError(httpStatus.BAD_REQUEST, 'No available staff for the selected time slot');
+        }
+
+        // Assign to selected staff user
+        bookingData.assignedTo = selectedStaff._id;
+
+        // Get staff working hours
+        const staffWorkingHours = await WorkingHours.findOne({
+            date: new Date(bookingData.appointmentDate),
+            staff: selectedStaff._id
+        });
+
+        // Add error handling for missing working hours
+        if (!staffWorkingHours) {
+            throw new ApiError(
+                httpStatus.INTERNAL_SERVER_ERROR,
+                `Staff ${selectedStaff.name} has no working hours initialized for ${bookingData.appointmentDate}`
+            );
+        }
+
+        // Validate slot availability
+        if (!staffWorkingHours.availableSlots.includes(serviceStartingTime)) {
+            throw new ApiError(
+                httpStatus.BAD_REQUEST,
+                `Selected time slot ${serviceStartingTime} is not available for ${selectedStaff.name}`
+            );
+        }
+
+        // Create the booking first
+        const newBooking = await Booking.create(bookingData);
+
+        // Calculate slotsToBlock using the model-generated end time
+        const startTime = parseAMPM(newBooking.serviceStartingTime);
+        const endTime = parseAMPM(newBooking.bookingEndTime);
+        const slotsToBlock = [];
+        
+        let currentTime = new Date(startTime);
+        while (currentTime <= endTime) { // Use <= to include end time
+            slotsToBlock.push(formatAMPM(currentTime));
+            currentTime.setMinutes(currentTime.getMinutes() + 30);
+        }
+
+        // Block slots atomically
+        const updatedAvailable = staffWorkingHours.availableSlots.filter(s => 
+            !slotsToBlock.includes(s)
         );
-    }
+        const updatedUnavailable = [...new Set([...staffWorkingHours.unavailableSlots, ...slotsToBlock])];
+        
+        await WorkingHours.findByIdAndUpdate(staffWorkingHours._id, {
+            $set: {
+                availableSlots: updatedAvailable,
+                unavailableSlots: updatedUnavailable
+            }
+        });
 
-    // After slot validation
-    console.log('Validating staff availability for slots:', validationSlots);
-    const availableStaff = await getAvailableStaff(bookingData.appointmentDate, bookingData.serviceStartingTime);
-    
-    if (availableStaff.length === 0) {
-        console.error('No available staff details:');
-        console.error('- All staff:', allStaff.map(s => ({
-            id: s._id,
-            dayOff: s.workingHours?.[0]?.dayOff,
-            bookings: s.assignedBookings.map(b => b.serviceStartingTime)
-        })));
-        // Block slots globally when no staff available
-        await Promise.all(validationSlots.map(slot => 
+        // Update global availability
+        await Promise.all(slotsToBlock.map(slot =>
             updateGlobalAvailability(bookingData.appointmentDate, slot)
         ));
 
-        console.error('No available staff due to:');
-        console.error('- Day off status:', availableStaff.map(s => s.workingHours[0]?.dayOff));
-        console.error('- Existing bookings:', availableStaff.map(s => s.assignedBookings));
-        throw new ApiError(
-            httpStatus.BAD_REQUEST,
-            'No available staff for selected time slot - This time period has been blocked for future bookings'
-        );
-    }
+        // Update user's assigned bookings
+        await User.findByIdAndUpdate(selectedStaff._id, {
+            $push: { assignedBookings: newBooking._id }
+        });
 
-    const selectedStaff = await selectStaffMember(availableStaff, bookingData.appointmentDate);
-    
-    if (!selectedStaff) {
-        throw new ApiError(httpStatus.BAD_REQUEST, 'No available staff for the selected time slot');
-    }
+        // Fetch service information for email templates
+        const serviceInfo = await Service.find({ _id: { $in: service_ids } });
+        const addOnInfo = await AddOnService.find({ _id: { $in: bookingData.selectedAddOns } }).lean();
+        // Format booking end time
+        const calculatedBookingEndTime = formatAMPM(bookingEnd);
 
-    // Assign to selected staff user
-    bookingData.assignedTo = selectedStaff._id;
+        // Send email notifications
+        const clientEmailOptions = {
+            from: process.env.EMAIL_USER,
+            to: bookingData.clientDetails.email,
+            subject: ' Booking Received – Pending Confirmation',
+            html: bookingConfirmationTemplate(newBooking, serviceInfo, calculatedBookingEndTime, addOnInfo),
+        };
 
-    // Get staff working hours
-    const staffWorkingHours = await WorkingHours.findOne({
-        date: new Date(bookingData.appointmentDate),
-        staff: selectedStaff._id
-    });
+        const staffEmailOptions = {
+            from: process.env.EMAIL_USER,
+            to: selectedStaff.email,
+            subject: 'New Booking Assigned',
+            html: staffNotificationTemplate(newBooking, selectedStaff, serviceInfo, calculatedBookingEndTime, addOnInfo),
+        };
 
-    // Add error handling for missing working hours
-    if (!staffWorkingHours) {
-        throw new ApiError(
-            httpStatus.INTERNAL_SERVER_ERROR,
-            `Staff ${selectedStaff.name} has no working hours initialized for ${bookingData.appointmentDate}`
-        );
-    }
+        try {
+            await transporter.sendMail(clientEmailOptions);
+            console.log('Client email sent successfully');
+        } catch (error) {
+            console.error('Failed to send client email:', error);
+        }
 
-    // Validate slot availability
-    if (!staffWorkingHours.availableSlots.includes(serviceStartingTime)) {
-        throw new ApiError(
-            httpStatus.BAD_REQUEST,
-            `Selected time slot ${serviceStartingTime} is not available for ${selectedStaff.name}`
-        );
-    }
+        try {
+            await transporter.sendMail(staffEmailOptions);
+            console.log('Staff email sent successfully');
+        } catch (error) {
+            console.error('Failed to send staff email:', error);
+        }
 
-    // Create the booking first
-    const newBooking = await Booking.create(bookingData);
+        // Call this after successful booking creation
+        await updateGlobalAvailability(bookingData.appointmentDate, bookingData.serviceStartingTime);
 
-    // Calculate slotsToBlock using the model-generated end time
-    const startTime = parseAMPM(newBooking.serviceStartingTime);
-    const endTime = parseAMPM(newBooking.bookingEndTime);
-    const slotsToBlock = [];
-    
-    let currentTime = new Date(startTime);
-    while (currentTime <= endTime) { // Use <= to include end time
-        slotsToBlock.push(formatAMPM(currentTime));
-        currentTime.setMinutes(currentTime.getMinutes() + 30);
-    }
+        console.log(`Assigned booking to staff ${selectedStaff._id}`);
+        console.log('Current staff assignments:', {
+            staff1: {
+                id: availableStaff[0]._id,
+                bookings: availableStaff[0].assignedBookings.length,
+                index: availableStaff[0].lastAssignedIndex
+            },
+            staff2: availableStaff[1] ? {
+                id: availableStaff[1]._id,
+                bookings: availableStaff[1].assignedBookings.length,
+                index: availableStaff[1].lastAssignedIndex
+            } : null
+        });
 
-    // Mark all affected slots as unavailable
-    staffWorkingHours.unavailableSlots.push(...slotsToBlock);
-    staffWorkingHours.availableSlots = staffWorkingHours.availableSlots.filter(
-        slot => !slotsToBlock.includes(slot)
-    );
-    await staffWorkingHours.save();
-
-    // Update user's assigned bookings
-    await User.findByIdAndUpdate(selectedStaff._id, {
-        $push: { assignedBookings: newBooking._id }
-    });
-
-    // Fetch service information for email templates
-    const serviceInfo = await Service.find({ _id: { $in: service_ids } });
-    const addOnInfo = await AddOnService.find({ _id: { $in: bookingData.selectedAddOns } }).lean();
-    // Format booking end time
-    const calculatedBookingEndTime = formatAMPM(bookingEnd);
-
-    // Send email notifications
-    const clientEmailOptions = {
-        from: process.env.EMAIL_USER,
-        to: bookingData.clientDetails.email,
-        subject: ' Booking Received – Pending Confirmation',
-        html: bookingConfirmationTemplate(newBooking, serviceInfo, calculatedBookingEndTime, addOnInfo),
-    };
-
-    const staffEmailOptions = {
-        from: process.env.EMAIL_USER,
-        to: selectedStaff.email,
-        subject: 'New Booking Assigned',
-        html: staffNotificationTemplate(newBooking, selectedStaff, serviceInfo, calculatedBookingEndTime, addOnInfo),
-    };
-
-    try {
-        await transporter.sendMail(clientEmailOptions);
-        console.log('Client email sent successfully');
+        return newBooking;
     } catch (error) {
-        console.error('Failed to send client email:', error);
+        console.error('Booking Failed:', error.message);
+        throw error;
     }
-
-    try {
-        await transporter.sendMail(staffEmailOptions);
-        console.log('Staff email sent successfully');
-    } catch (error) {
-        console.error('Failed to send staff email:', error);
-    }
-
-    // Call this after successful booking creation
-    await updateGlobalAvailability(bookingData.appointmentDate, bookingData.serviceStartingTime);
-
-    console.log(`Assigned booking to staff ${selectedStaff._id}`);
-    console.log('Current staff assignments:', {
-        staff1: {
-            id: availableStaff[0]._id,
-            bookings: availableStaff[0].assignedBookings.length,
-            index: availableStaff[0].lastAssignedIndex
-        },
-        staff2: availableStaff[1] ? {
-            id: availableStaff[1]._id,
-            bookings: availableStaff[1].assignedBookings.length,
-            index: availableStaff[1].lastAssignedIndex
-        } : null
-    });
-
-    return newBooking;
 };
 
 // Get all bookings
