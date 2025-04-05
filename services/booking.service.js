@@ -472,7 +472,7 @@ const createBooking = async (bookingData) => {
         const slotsToBlock = [];
         
         let currentTime = new Date(startTime);
-        while (currentTime <= endTime) { // Use <= to include end time
+        while (currentTime < endTime) { // Use <= to include end time
             slotsToBlock.push(formatAMPM(currentTime));
             currentTime.setMinutes(currentTime.getMinutes() + 30);
         }
