@@ -781,7 +781,7 @@ const approveBooking = async (bookingId) => {
     const serviceInfo = await Service.find({ _id: { $in: booking.service_ids } });
    
     const addOnInfo = await AddOnService.find({ _id: { $in: booking.selectedAddOns } }).lean();
-    const calculatedBookingEndTime = formatAMPM(bookingEnd);
+    //const calculatedBookingEndTime = formatAMPM(bookingEnd);
     // Send email notification to client
     const clientEmailOptions = {
         from: process.env.EMAIL_USER,
@@ -1013,6 +1013,9 @@ const updateGlobalAvailability = async (date, timeSlot) => {
 const getWorkingHoursBreakdown = async (date) => {
     const bookingDate = new Date(date);
     
+    // Ensure working hours are initialized first
+    await initializeWorkingHours(date);
+
     const [global, staffHours] = await Promise.all([
         WorkingHours.findOne({ 
             date: bookingDate,
