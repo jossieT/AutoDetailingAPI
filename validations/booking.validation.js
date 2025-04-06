@@ -127,6 +127,12 @@ const markAsCompleted = {
     }),
 };
 
+const getWorkingHoursBreakdown = {
+    query: joi.object().keys({
+        date: joi.date().iso().required()
+    })
+};
+
 module.exports = {
     createBookingSchema,
     updateBookingSchema,
@@ -134,5 +140,6 @@ module.exports = {
     deleteBookingSchema,
     approveBooking,
     cancelBooking,
-    markAsCompleted
+    markAsCompleted,
+    getWorkingHoursBreakdown
 };

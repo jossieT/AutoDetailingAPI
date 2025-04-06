@@ -1,5 +1,6 @@
 const bookingService = require('../services/booking.service');
 const catchAsync = require('../utils/catchAsync');
+const httpStatus = require('http-status');
 //const cloudinary = require('../config/cloudinary');
 
 // Controller to get available slots for a given date
@@ -215,6 +216,12 @@ const getDeletedBookings = catchAsync(async (req, res) => {
     });
 });
 
+const getWorkingHoursBreakdown = catchAsync(async (req, res) => {
+    const { date } = req.query;
+    const breakdown = await bookingService.getWorkingHoursBreakdown(date);
+    res.send(breakdown);
+});
+
 module.exports = {
     createBooking,
     getAllBookings,
@@ -226,5 +233,6 @@ module.exports = {
     approveBooking,
     cancelBooking,
     markAsCompleted,
-    getDeletedBookings
+    getDeletedBookings,
+    getWorkingHoursBreakdown
 };

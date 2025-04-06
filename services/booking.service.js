@@ -779,8 +779,9 @@ const approveBooking = async (bookingId) => {
     await booking.save();
 
     const serviceInfo = await Service.find({ _id: { $in: booking.service_ids } });
+   
     const addOnInfo = await AddOnService.find({ _id: { $in: booking.selectedAddOns } }).lean();
-
+    const calculatedBookingEndTime = formatAMPM(bookingEnd);
     // Send email notification to client
     const clientEmailOptions = {
         from: process.env.EMAIL_USER,
@@ -1009,6 +1010,42 @@ const updateGlobalAvailability = async (date, timeSlot) => {
     }
 };
 
+const getWorkingHoursBreakdown = async (date) => {
+    const bookingDate = new Date(date);
+    
+    const [global, staffHours] = await Promise.all([
+        WorkingHours.findOne({ 
+            date: bookingDate,
+            staff: { $exists: false }
+        }),
+        WorkingHours.find({
+            date: bookingDate,
+            staff: { $exists: true }
+        }).populate('staff', 'name _id').lean()
+    ]);
+
+    // Reuse existing availability calculation logic
+    const globalAvailableSlots = await getAvailableSlots(date);
+
+    return {
+        global: {
+            date: bookingDate,
+            availableSlots: globalAvailableSlots,
+            unavailableSlots: global?.unavailableSlots || [],
+            dayOff: global?.dayOff || false
+        },
+        staff: staffHours
+            .filter(h => h.staff)
+            .map(h => ({
+                staffId: h.staff?._id || 'unknown-staff-id',
+                staffName: h.staff?.name || 'Unknown Staff',
+                available: h.availableSlots,
+                unavailable: h.unavailableSlots,
+                dayOff: h.dayOff
+            }))
+    };
+};
+
 module.exports = {
     createBooking,
     getAllBookings,
@@ -1020,5 +1057,6 @@ module.exports = {
     approveBooking,
     cancelBooking,
     markAsCompleted,
-    getDeletedBookings
+    getDeletedBookings,
+    getWorkingHoursBreakdown
 };
