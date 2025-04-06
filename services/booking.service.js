@@ -640,107 +640,71 @@ const updateBookingById = async (bookingId, updateData) => {
 
 // Delete a booking by ID
 const deleteBookingById = async (bookingId) => {
-    // Find the booking to archive
     const booking = await Booking.findById(bookingId);
     if (!booking) {
         throw new ApiError(httpStatus.NOT_FOUND, 'Booking not found');
     }
 
-    try {
-        // Archive the booking before deletion
-        const deletedBooking = new DeletedBooking({
-            originalId: booking._id,
-            deletedAt: new Date(),
-            bookingData: booking.toObject()
-        });
-        await deletedBooking.save();
-    } catch (archiveError) {
-        throw new ApiError(
-            httpStatus.INTERNAL_SERVER_ERROR,
-            'Failed to archive booking before deletion'
-        );
-    }
+    // Archive the booking
+    await DeletedBooking.create({
+        originalId: booking._id,
+        deletedAt: new Date(),
+        bookingData: booking.toObject()
+    });
 
-    // Release reserved time slots
-    if (booking.appointmentDate && booking.serviceStartingTime && booking.service_ids) {
-        const workingHours = await WorkingHours.findOne({ date: new Date(booking.appointmentDate) });
-        if (workingHours) {
-
-            const bookingStart = parseAMPM(booking.serviceStartingTime);
-            // Calculate total duration (including the extra 1 hour)
-            //const services = await Service.find({ _id: { $in: booking.service_ids } });
-            const services = await Service.find({ _id: { $in: booking.service_ids } }, 'duration');
-            const addOns = await AddOnService.find({ _id: { $in: booking.selectedAddOns } }, 'duration');
-
-            let totalDuration = 0;
-            const serviceDuration = services.reduce((total, service) => {
-                if (!service.duration || !service.duration[booking.vehicleDetails.carType]) {
-                    throw new ApiError(httpStatus.BAD_REQUEST, `Service ${service.name} does not have a duration for ${booking.vehicleDetails.carType}.`);
-                }
-                return total + service.duration[booking.vehicleDetails.carType];
-            }, 0);
-
-            totalDuration += serviceDuration;
-
-            const addOnDuration = addOns.reduce((total, addOn) => {
-                if (!addOn.duration) {
-                    throw new ApiError(httpStatus.BAD_REQUEST, `Add-On ${addOn.name} does not have a duration.`);
-                }
-                return total + addOn.duration;
-            }, 0);
-
-            if (booking.selectedAddOns) {
-                totalDuration += addOnDuration;
-            }
-
-
-
-
-
-            // const totalDuration = services.reduce((total, service) => {
-            //     if (!service.duration || !service.duration[booking.vehicleDetails.carType]) {
-            //         throw new ApiError(httpStatus.BAD_REQUEST, `Service ${service.name} does not have a duration for ${booking.vehicleDetails.carType}.`);
-            //     }
-            //     return total + service.duration[booking.vehicleDetails.carType];
-            // }, 0);
-
-
-
-
-
-            const bookingEnd = new Date(bookingStart.getTime() + totalDuration * 60 * 1000);
-            const extendedEnd = new Date(bookingEnd.getTime() + 1 * 60 * 60 * 1000);
-
-            // Generate time slots to release
-            const slotsToRelease = [];
-            for (let time = new Date(bookingStart); time <= extendedEnd; time.setMinutes(time.getMinutes() + 30)) {
-                slotsToRelease.push(formatAMPM(new Date(time)));
-            }
-
-            // Update working hours: remove slots from unavailableSlots and add back to availableSlots
-            workingHours.unavailableSlots = workingHours.unavailableSlots.filter(
-                (slot) => !slotsToRelease.includes(slot)
-            );
-            workingHours.availableSlots = [...workingHours.availableSlots, ...slotsToRelease];
-
-            // Ensure no duplicates in availableSlots
-            workingHours.availableSlots = [...new Set(workingHours.availableSlots)];
-            await workingHours.save();
-        }
-    }
-
-    // Remove the booking ID from assigned staff
+    // Release slots if assigned to staff
     if (booking.assignedTo) {
-        await User.updateOne(
-            { _id: booking.assignedTo },
+        const staff = await User.findById(booking.assignedTo)
+            .populate({
+                path: 'workingHours',
+                match: { date: booking.appointmentDate }
+            });
+
+        if (staff) {
+            const staffHours = staff.workingHours.find(wh => 
+                wh.date.getTime() === booking.appointmentDate.getTime()
+            );
+
+            if (staffHours) {
+                // Calculate slots to release (booking time + 1hr buffer)
+                const start = parseAMPM(booking.serviceStartingTime);
+                const end = parseAMPM(booking.bookingEndTime);
+                const bufferEnd = new Date(end.getTime() + 60 * 60 * 1000);
+
+                const slotsToRelease = [];
+                for (let t = new Date(start); t <= bufferEnd; t.setMinutes(t.getMinutes() + 30)) {
+                    slotsToRelease.push(formatAMPM(new Date(t)));
+                }
+
+                // Update staff's availability
+                staffHours.unavailableSlots = staffHours.unavailableSlots
+                    .filter(slot => !slotsToRelease.includes(slot));
+                
+                staffHours.availableSlots = [
+                    ...new Set([...staffHours.availableSlots, ...slotsToRelease])
+                ].sort();
+
+                await staffHours.save();
+
+                // Sync global availability
+                await Promise.all(
+                    slotsToRelease.map(slot => 
+                        updateGlobalAvailability(booking.appointmentDate, slot)
+                    )
+                );
+            }
+        }
+
+        // Remove from staff's assignments
+        await User.findByIdAndUpdate(
+            booking.assignedTo,
             { $pull: { assignedBookings: booking._id } }
         );
     }
 
-    // Finally, delete the booking
+    // Delete the booking
     await booking.deleteOne();
-
-    return { message: 'Booking deleted and archived successfully' };
+    return { message: 'Booking deleted and slots released' };
 };
 
 //assign staff to a booking 
@@ -803,107 +767,85 @@ const approveBooking = async (bookingId) => {
 // Cancel a booking
 const cancelBooking = async (bookingId) => {
     const booking = await Booking.findById(bookingId);
+    
     if (!booking) {
         throw new ApiError(httpStatus.NOT_FOUND, 'Booking not found');
     }
 
-    if(booking.status === 'Canceled') {
-        throw new ApiError(httpStatus.BAD_REQUEST, 'Booking is already canceled.');
+    if (booking.status === 'Canceled') {
+        throw new ApiError(httpStatus.BAD_REQUEST, 'Booking is already canceled');
     }
 
-    if(booking.status === 'Completed') {
-        throw new ApiError(httpStatus.BAD_REQUEST, 'Completed Bookings cannot be changed.');
+    // Release time slots if assigned to staff
+    if (booking.assignedTo) {
+        const staff = await User.findById(booking.assignedTo)
+            .populate({
+                path: 'workingHours',
+                match: { date: booking.appointmentDate }
+            });
+
+        if (staff) {
+            const staffHours = staff.workingHours.find(wh => 
+                wh.date.getTime() === booking.appointmentDate.getTime()
+            );
+
+            if (staffHours) {
+                // Calculate slots to release (booking time + 1hr buffer)
+                const start = parseAMPM(booking.serviceStartingTime);
+                const end = parseAMPM(booking.bookingEndTime);
+                const bufferEnd = new Date(end.getTime() + 60 * 60 * 1000);
+
+                const slotsToRelease = [];
+                for (let t = new Date(start); t <= bufferEnd; t.setMinutes(t.getMinutes() + 30)) {
+                    slotsToRelease.push(formatAMPM(new Date(t)));
+                }
+
+                // Update staff's availability
+                staffHours.unavailableSlots = staffHours.unavailableSlots
+                    .filter(slot => !slotsToRelease.includes(slot));
+                
+                staffHours.availableSlots = [
+                    ...new Set([...staffHours.availableSlots, ...slotsToRelease])
+                ].sort();
+
+                await staffHours.save();
+
+                // Sync global availability
+                await Promise.all(
+                    slotsToRelease.map(slot => 
+                        updateGlobalAvailability(booking.appointmentDate, slot)
+                    )
+                );
+            }
+        }
+
+        // Remove from staff's assignments
+        await User.findByIdAndUpdate(
+            booking.assignedTo,
+            { $pull: { assignedBookings: booking._id } }
+        );
     }
 
-
-
+    // Update booking status
     booking.status = 'Canceled';
     await booking.save();
 
-    // Release reserved time slots
-    if (booking.appointmentDate && booking.serviceStartingTime && booking.service_ids) {
-        const workingHours = await WorkingHours.findOne({ date: new Date(booking.appointmentDate) });
-        if (workingHours) {
-
-            const bookingStart = parseAMPM(booking.serviceStartingTime);
-            // Calculate total duration (including the extra 1 hour)
-            //const services = await Service.find({ _id: { $in: booking.service_ids } });
-            const services = await Service.find({ _id: { $in: booking.service_ids } }, 'duration');
-            const addOns = await AddOnService.find({ _id: { $in: booking.selectedAddOns } }, 'duration');
-
-            let totalDuration = 0;
-            const serviceDuration = services.reduce((total, service) => {
-                if (!service.duration || !service.duration[booking.vehicleDetails.carType]) {
-                    throw new ApiError(httpStatus.BAD_REQUEST, `Service ${service.name} does not have a duration for ${booking.vehicleDetails.carType}.`);
-                }
-                return total + service.duration[booking.vehicleDetails.carType];
-            }, 0);
-
-            totalDuration += serviceDuration;
-
-            const addOnDuration = addOns.reduce((total, addOn) => {
-                if (!addOn.duration) {
-                    throw new ApiError(httpStatus.BAD_REQUEST, `Add-On ${addOn.name} does not have a duration.`);
-                }
-                return total + addOn.duration;
-            }, 0);
-
-            if (booking.selectedAddOns) {
-                totalDuration += addOnDuration;
-            }
-
-
-
-
-
-            // const totalDuration = services.reduce((total, service) => {
-            //     if (!service.duration || !service.duration[booking.vehicleDetails.carType]) {
-            //         throw new ApiError(httpStatus.BAD_REQUEST, `Service ${service.name} does not have a duration for ${booking.vehicleDetails.carType}.`);
-            //     }
-            //     return total + service.duration[booking.vehicleDetails.carType];
-            // }, 0);
-
-
-
-
-
-            const bookingEnd = new Date(bookingStart.getTime() + totalDuration * 60 * 1000);
-            const extendedEnd = new Date(bookingEnd.getTime() + 1 * 60 * 60 * 1000);
-
-            // Generate time slots to release
-            const slotsToRelease = [];
-            for (let time = new Date(bookingStart); time <= extendedEnd; time.setMinutes(time.getMinutes() + 30)) {
-                slotsToRelease.push(formatAMPM(new Date(time)));
-            }
-
-            // Update working hours: remove slots from unavailableSlots and add back to availableSlots
-            workingHours.unavailableSlots = workingHours.unavailableSlots.filter(
-                (slot) => !slotsToRelease.includes(slot)
-            );
-            workingHours.availableSlots = [...workingHours.availableSlots, ...slotsToRelease];
-
-            // Ensure no duplicates in availableSlots
-            workingHours.availableSlots = [...new Set(workingHours.availableSlots)];
-            await workingHours.save();
-        }
-    }
-
+    // Send cancellation email
     const serviceInfo = await Service.find({ _id: { $in: booking.service_ids } });
     const addOnInfo = await AddOnService.find({ _id: { $in: booking.selectedAddOns } }).lean();
-
-    // Send email notification to client
+    
     const clientEmailOptions = {
         from: process.env.EMAIL_USER,
         to: booking.clientDetails.email,
-        subject: ' Update Regarding Your Booking Request with Swift Addis',
+        subject: 'Booking Cancellation Notification',
         html: bookingCancellationTemplate(booking, serviceInfo, addOnInfo),
     };
 
     try {
         await transporter.sendMail(clientEmailOptions);
-        console.log('Client email sent successfully');
+        console.log('Cancellation email sent successfully');
     } catch (error) {
-        console.error('Failed to send client email:', error);
+        console.error('Failed to send cancellation email:', error);
     }
 
     return booking;
