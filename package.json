@@ -34,7 +34,13 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "fix-indexes": "node scripts/fix-indexes.js",
+    "fix-working-hours": "node scripts/fix-working-hours.js",
+    "db-repair": "npm run fix-indexes && npm run fix-working-hours",
+    "mongo-shell": "chmod +x scripts/mongodb-shell.sh && ./scripts/mongodb-shell.sh",
+    "prepare-fix-scripts": "mkdir -p scripts && chmod +x scripts/*.sh",
+    "print-fix-commands": "cat scripts/direct-fix.js"
   },
   "devDependencies": {
     "@eslint/js": "^9.13.0",
