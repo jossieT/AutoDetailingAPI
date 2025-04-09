@@ -179,7 +179,20 @@ const updateBookingById = catchAsync(async (req, res) => {
 
 // Delete a booking by ID
 const deleteBookingById = catchAsync(async (req, res) => {
-    const result = await bookingService.deleteBookingById(req.params.bookingId);
+    //console.log('Full user object from request:', req.user);
+    
+    if (!req.user || !req.user._id) {
+        return res.status(401).json({
+            status: 'error',
+            message: 'Authentication required - No user found in request'
+        });
+    }
+
+    const result = await bookingService.deleteBookingById(
+        req.params.bookingId,
+        req.user._id
+    );
+    
     res.status(200).json({
         status: 'success',
         message: result.message

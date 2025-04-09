@@ -4,6 +4,7 @@ const { uploadBookingImages } = require('../middlewares/multer');
 const router = express.Router();
 const validate = require('../middlewares/validate');
 const bookingValidation = require('../validations/booking.validation');
+const { authenticate, staffAuth, adminAuth  } = require('../middlewares/auth');
 // const workingHoursValidation = require('../validations/workingHours.validation');
 // const auth = require('../middlewares/auth');
 
@@ -491,7 +492,7 @@ router.post('/api/bookings',
 router.get('/api/bookings', bookingController.getAllBookings);
 
 // Get all deleted bookings (moved before :bookingId routes)
-router.get('/api/bookings/deleted', bookingController.getDeletedBookings);
+router.get('/api/bookings/deleted', authenticate, bookingController.getDeletedBookings);
 
 // Get a booking by ID
 router.get('/api/bookings/:bookingId', validate(bookingValidation.getBookingSchema), bookingController.getBookingById);
@@ -504,19 +505,23 @@ router.patch('/api/bookings/:bookingId',
 );
 
 // Delete a booking by ID
-router.delete('/api/bookings/:bookingId', validate(bookingValidation.deleteBookingSchema), bookingController.deleteBookingById);
+router.delete('/api/bookings/:bookingId', 
+    authenticate,
+    validate(bookingValidation.deleteBookingSchema),
+    bookingController.deleteBookingById
+);
 
 // Assign a user to a booking
 router.patch('/api/bookings/:bookingId/assign/:userId', bookingController.assignUserToBooking);
 
 // Approve a booking
-router.patch('/api/bookings/:bookingId/approve', validate(bookingValidation.approveBooking), bookingController.approveBooking);
+router.patch('/api/bookings/:bookingId/approve', authenticate, validate(bookingValidation.approveBooking), bookingController.approveBooking);
 
 // Cancel a booking
-router.patch('/api/bookings/:bookingId/cancel', validate(bookingValidation.cancelBooking), bookingController.cancelBooking);
+router.patch('/api/bookings/:bookingId/cancel', authenticate, validate(bookingValidation.cancelBooking), bookingController.cancelBooking);
 
 // Mark a booking as completed
-router.patch('/api/bookings/:bookingId/complete', validate(bookingValidation.markAsCompleted), bookingController.markAsCompleted);
+router.patch('/api/bookings/:bookingId/complete', authenticate, validate(bookingValidation.markAsCompleted), bookingController.markAsCompleted);
 
 
 module.exports = router;

@@ -12,7 +12,7 @@ const fs = require('fs');
 dotenv.config({ path: path.join(__dirname, '../.env') });
 
 // MongoDB connection string from env
-const DB_CONNECTION = process.env.DB_CONNECTION_STR;
+const DB_CONNECTION = process.env.DB_CONNECTION
 
 if (!DB_CONNECTION) {
   console.error('DB_CONNECTION_STR not found in .env file');

@@ -5,7 +5,7 @@ const { ApiError } = require('../utils/ApiError');
 const httpStatus = require('http-status');
 const { parseAMPM, formatAMPM } = require('../helpers/time.formatter');
 const Service = require('../model/service.model');
-const transporter = require('../config/nodemailer');
+const { transporter, adminTransporter } = require('../config/nodemailer');
 const { bookingConfirmationTemplate, staffNotificationTemplate, bookingCancellationTemplate, bookingApprovalTemplate, bookingCompletedTemplate } = require('../utils/emailTemplates');
 const AddOnService = require('../model/addon.service.model');
 const DeletedBooking = require('../model/deleted-booking.model');
@@ -742,13 +742,13 @@ const createBooking = async (bookingData) => {
         if (selectedStaff && selectedStaff.email) {
             try {
                 const staffEmailOptions = {
-                    from: process.env.EMAIL_USER,
+                    from: process.env.ADMINEMAIL_USER,
                     to: selectedStaff.email,
                     subject: 'New Booking Assigned',
                     html: staffNotificationTemplate(newBooking, selectedStaff, serviceInfo, calculatedBookingEndTime, addOnInfo),
                 };
 
-                await transporter.sendMail(staffEmailOptions);
+                await adminTransporter.sendMail(staffEmailOptions);
                 console.log('Staff notification email sent successfully');
             } catch (error) {
                 console.error('Failed to send staff email:', error.message);
@@ -875,16 +875,17 @@ const updateBookingById = async (bookingId, updateData) => {
 };
 
 // Delete a booking by ID
-const deleteBookingById = async (bookingId) => {
+const deleteBookingById = async (bookingId, deletedByUserId) => {
     const booking = await Booking.findById(bookingId);
     if (!booking) {
         throw new ApiError(httpStatus.NOT_FOUND, 'Booking not found');
     }
 
-    // Archive the booking
+    // Archive the booking with deleter info
     await DeletedBooking.create({
         originalId: booking._id,
         deletedAt: new Date(),
+        deletedBy: deletedByUserId,
         bookingData: booking.toObject()
     });
 
@@ -1132,7 +1133,8 @@ const markAsCompleted = async (bookingId) => {
 
 const getDeletedBookings = async () => {
     const deletedBookings = await DeletedBooking.find({})
-        .sort({ deletedAt: -1 }); // Sort by deletion date, most recent first
+        .sort({ deletedAt: -1 }) // Sort by deletion date, most recent first
+        .populate('deletedBy', 'name email');
     
     if (!deletedBookings || deletedBookings.length === 0) {
         return [];
