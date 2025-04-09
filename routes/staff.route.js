@@ -249,7 +249,7 @@ const router = express.Router();
  */
 
 // Get all staff
-router.get('/api/staff', adminAuth, staffController.allStaff);
+router.get('/api/staff', authenticate, staffController.allStaff);
 // Add a new staff member
 router.post('/api/staff', adminAuth, staffController.addStaff);
 
