@@ -20,6 +20,14 @@ const transporter = nodemailer.createTransport({
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
     },
+    
+    name: 'Swift Addis Detailing', // This will appear as the sender name
+    from: `"Swift Addis Detailing" <${process.env.EMAIL_USER}>`,
+    headers: {
+        'X-Mailer': 'NodeMailer',
+        'Organization': 'Swift Addis Detailing'
+    }
+
 });
 
 // Test the connection (optional)
