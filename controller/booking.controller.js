@@ -1,5 +1,6 @@
 const bookingService = require('../services/booking.service');
 const catchAsync = require('../utils/catchAsync');
+const httpStatus = require('http-status');
 //const cloudinary = require('../config/cloudinary');
 
 // Controller to get available slots for a given date
@@ -178,7 +179,20 @@ const updateBookingById = catchAsync(async (req, res) => {
 
 // Delete a booking by ID
 const deleteBookingById = catchAsync(async (req, res) => {
-    const result = await bookingService.deleteBookingById(req.params.bookingId);
+    //console.log('Full user object from request:', req.user);
+    
+    if (!req.user || !req.user._id) {
+        return res.status(401).json({
+            status: 'error',
+            message: 'Authentication required - No user found in request'
+        });
+    }
+
+    const result = await bookingService.deleteBookingById(
+        req.params.bookingId,
+        req.user._id
+    );
+    
     res.status(200).json({
         status: 'success',
         message: result.message
@@ -215,6 +229,12 @@ const getDeletedBookings = catchAsync(async (req, res) => {
     });
 });
 
+const getWorkingHoursBreakdown = catchAsync(async (req, res) => {
+    const { date } = req.query;
+    const breakdown = await bookingService.getWorkingHoursBreakdown(date);
+    res.send(breakdown);
+});
+
 module.exports = {
     createBooking,
     getAllBookings,
@@ -226,5 +246,6 @@ module.exports = {
     approveBooking,
     cancelBooking,
     markAsCompleted,
-    getDeletedBookings
+    getDeletedBookings,
+    getWorkingHoursBreakdown
 };

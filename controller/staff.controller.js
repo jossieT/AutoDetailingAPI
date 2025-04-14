@@ -1,6 +1,7 @@
 const staffService = require('../services/staff.service');
 const catchAsync = require('../utils/catchAsync');
 const httpStatus = require('http-status');
+const User = require('../model/user.model');
 
 //List of All Staff
 const allStaff = async (req, res) => {
@@ -43,17 +44,13 @@ const deleteStaff = async (req, res) => {
 };
 
 // Get bookings assigned to staff
-const getStaffBookings = async (req, res) => {
-  try {
+const getStaffBookings = catchAsync(async (req, res) => {
     const bookings = await staffService.getStaffBookings(req.params.staffId);
-    
-    console.log(bookings);
-    
-    res.status(200).json({ message: 'Bookings retrieved successfully', bookings });
-  } catch (error) {
-    res.status(400).json({ error: error.message });
-  }
-};
+    res.status(200).json({
+        status: 'success',
+        data: bookings
+    });
+});
 
 // Get staff by ID
 const getStaffById = catchAsync(async (req, res) => {
@@ -64,4 +61,16 @@ const getStaffById = catchAsync(async (req, res) => {
     });
 });
 
-module.exports = { addStaff, editStaff, deleteStaff, getStaffBookings, allStaff, getStaffById };
+const getAssignmentStats = catchAsync(async (req, res) => {
+    const stats = await User.aggregate([
+        { $match: { role: 'staff' } },
+        { $project: {
+            name: 1,
+            bookingCount: { $size: "$assignedBookings" },
+            lastAssigned: 1
+        }}
+    ]);
+    res.json(stats);
+});
+
+module.exports = { addStaff, editStaff, deleteStaff, getStaffBookings, allStaff, getStaffById, getAssignmentStats };

@@ -1,6 +1,10 @@
 const express = require('express');
 const staffController = require('../controller/staff.controller');
 const { adminAuth, authenticate } = require('../middlewares/auth');
+const { validate } = require('../middlewares/validate');
+const joi = require('joi');
+const catchAsync = require('../utils/catchAsync');
+const staffService = require('../services/staff.service');
 
 const router = express.Router();
 
@@ -245,7 +249,7 @@ const router = express.Router();
  */
 
 // Get all staff
-router.get('/api/staff', adminAuth, staffController.allStaff);
+router.get('/api/staff', authenticate, staffController.allStaff);
 // Add a new staff member
 router.post('/api/staff', adminAuth, staffController.addStaff);
 
@@ -260,5 +264,17 @@ router.get('/api/staff/:staffId/bookings', authenticate, staffController.getStaf
 
 // Get staff by ID
 router.get('/api/staff/:staffId', authenticate, staffController.getStaffById);
+
+// Patch working hours
+router.patch('/api/staff/:staffId/working-hours',
+    adminAuth,
+    catchAsync(async (req, res) => {
+        const workingHours = await staffService.createCustomWorkingHours(
+            req.params.staffId,
+            req.body
+        );
+        res.status(200).json(workingHours);
+    })
+);
 
 module.exports = router;

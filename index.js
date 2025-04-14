@@ -15,8 +15,47 @@ const httpServer = http.createServer(app);
 
 mongoose.connect(config.db_connection, {
   useNewUrlParser: true,
-}).then(() => {
+}).then(async () => {
   logger.info('mongoDB connection successful');
+  
+  // Fix WorkingHours indexes - drop and recreate
+  try {
+    // Reference the WorkingHours model
+    const WorkingHours = mongoose.model('WorkingHours');
+    
+    // Get all current indexes
+    const indexes = await WorkingHours.collection.indexes();
+    
+    // Drop problematic indexes
+    const problematicIndexes = indexes.filter(index => 
+      index.name === 'date_1_staff_1' || 
+      (index.key && index.key.date && index.key.staff)
+    );
+    
+    for (const index of problematicIndexes) {
+      logger.info(`Dropping index: ${index.name}`);
+      await WorkingHours.collection.dropIndex(index.name);
+    }
+    
+    // Create proper indexes
+    await WorkingHours.collection.createIndex({ date: 1 });
+    await WorkingHours.collection.createIndex({ staff: 1 });
+    
+    // Create unique compound index only for staff-specific entries
+    await WorkingHours.collection.createIndex(
+      { date: 1, staff: 1 }, 
+      { 
+        unique: true,
+        sparse: true,
+        partialFilterExpression: { staff: { $exists: true, $ne: null } }
+      }
+    );
+    
+    logger.info('WorkingHours indexes have been fixed');
+  } catch (error) {
+    logger.error(`Error fixing WorkingHours indexes: ${error.message}`);
+  }
+  
   createInitialAdmin();
 }).catch((error) => {
   logger.error(`Error occured with erro message: ${error.message}, { stack: error.stack }`);

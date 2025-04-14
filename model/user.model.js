@@ -38,12 +38,18 @@ const userSchema = mongoose.Schema({
         enum: ['admin', 'staff'], 
         default: 'staff' 
     },
-    assignedBookings: [
-        {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: 'Booking', // Reference to the Booking model
-        },
-      ],
+    workingHours: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'WorkingHours'
+    }],
+    assignedBookings: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Booking'
+    }],
+    lastAssignedIndex: {
+        type: Number,
+        default: 0
+    },
     phone: { type: String },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
@@ -54,6 +60,9 @@ userSchema.pre('save', async function (next) {
     const user = this;
     if(user.isModified('password')) {
         user.password = await bycrypt.hash(user.password, 8);
+    }
+    if (user.role === 'staff' && user.workingHours.length === 0) {
+        console.warn(`Staff member ${user._id} has no working hours assigned`);
     }
     next();
 });
@@ -70,6 +79,18 @@ userSchema.statics.isEmailTaken = async function(email){
 }
 
 userSchema.plugin(toJson);
+
+userSchema.post('save', function(doc) {
+    if (doc.role === 'staff') {
+        console.log(`Staff ${doc._id} rotation index: ${doc.lastAssignedIndex}`);
+    }
+});
+
+// Add index for faster date filtering
+userSchema.index({
+    'assignedBookings.appointmentDate': 1
+});
+
 const User = mongoose.model('User', userSchema);
 
 module.exports = User;
