@@ -49,20 +49,57 @@ const updateDayOffSchema = {
     }),
     body: joi.object().keys({
         reason: joi.string(),
-        timeRange: joi.object({
-            startTime: joi.string().pattern(timePattern)
-                .message('Start time must be in format "HH:MM AM/PM"'),
-            endTime: joi.string().pattern(timePattern)
-                .message('End time must be in format "HH:MM AM/PM"')
-        }),
-        status: joi.string().valid('active', 'cancelled')
+        isGlobal: joi.boolean(),
+        isFullDay: joi.boolean(),
+        startTime: joi.string().pattern(timePattern)
+            .when('isFullDay', { is: false, then: joi.required() }),
+        endTime: joi.string().pattern(timePattern)
+            .when('isFullDay', { is: false, then: joi.required() }),
+        staffIds: joi.array().items(joi.string().hex().length(24))
+            .when('isGlobal', { is: true, then: joi.forbidden() })
     }).min(1)
 };
 
-const getDayOffsByDate = {
-    params: joi.object().keys({
-        date: joi.date().required(),
-    }),
+const getDayOffsSchema = {
+    query: joi.object().keys({
+        startDate: joi.date().iso(),
+        endDate: joi.date().iso(),
+        type: joi.string().valid('global', 'staff'),
+        staffId: joi.string().hex().length(24)
+    })
+};
+
+const createDayOff = {
+    body: joi.object().keys({
+        date: joi.date().iso().required(),
+        reason: joi.string().required()
+    })
+};
+
+const createStaffDayOff = {
+    body: joi.object().keys({
+        date: joi.date().iso().required(),
+        reason: joi.string().required(),
+        staffIds: joi.array().items(
+            joi.string().hex().length(24)
+        ).required()
+    })
+};
+
+const createPartialDayOffSchema = {
+    body: joi.object().keys({
+        date: joi.date().iso().required(),
+        reason: joi.string().required(),
+        isGlobal: joi.boolean().required(),
+        affectedStaff: joi.array().items(
+            joi.string().hex().length(24)
+        ).when('isGlobal', {
+            is: false,
+            then: joi.required()
+        }),
+        startTime: joi.string().pattern(timePattern).required(),
+        endTime: joi.string().pattern(timePattern).required()
+    })
 };
 
 // Helper function to convert 12-hour format to 24-hour format
@@ -86,5 +123,8 @@ module.exports = {
     createDayOffSchema,
     deleteDayOffSchema,
     updateDayOffSchema,
-    getDayOffsByDate
+    getDayOffsSchema,
+    createDayOff,
+    createStaffDayOff,
+    createPartialDayOffSchema
 }; 

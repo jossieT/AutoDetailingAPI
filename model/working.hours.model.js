@@ -23,6 +23,14 @@ const workingHoursSchema = new mongoose.Schema({
         default: false 
     },
     partialDayOff: [partialDayOffSchema], // Array of partial day-offs
+    isGlobal: { 
+        type: Boolean, 
+        default: false 
+    },
+    affectedStaff: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    }]
 }, { 
     timestamps: true
 });

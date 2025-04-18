@@ -9,26 +9,41 @@ const dayOffSchema = new mongoose.Schema({
     date: { 
         type: Date, 
         required: true,
-        index: true // Remove unique constraint to allow multiple day-offs per date
+        index: true 
     },
     reason: { 
-        type: String,
-        required: true
+        type: String, 
+        required: true 
     },
-    isFullDay: {
-        type: Boolean,
-        default: false
+    isGlobal: { 
+        type: Boolean, 
+        default: false,
+        index: true 
+    },
+    isFullDay: { 
+        type: Boolean, 
+        default: true 
     },
     timeRange: {
-        type: timeRangeSchema,
-        required: function() {
-            return !this.isFullDay;
+        startTime: {
+            type: String,
+            required: function() { return !this.isFullDay; }
+        },
+        endTime: {
+            type: String,
+            required: function() { return !this.isFullDay; }
         }
     },
+    affectedStaff: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        index: true
+    }],
     status: {
         type: String,
         enum: ['active', 'cancelled'],
-        default: 'active'
+        default: 'active',
+        index: true
     },
     createdAt: { 
         type: Date, 
@@ -38,6 +53,10 @@ const dayOffSchema = new mongoose.Schema({
         type: Date, 
         default: Date.now 
     }
+}, { 
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true } 
 });
 
 // Update the updatedAt timestamp before saving
@@ -46,11 +65,17 @@ dayOffSchema.pre('save', function(next) {
     next();
 });
 
-// Create a compound index for date + timeRange to prevent overlapping time ranges
+// Compound index for better query performance
 dayOffSchema.index({ 
     date: 1, 
-    'timeRange.startTime': 1, 
-    'timeRange.endTime': 1 
+    isGlobal: 1, 
+    status: 1 
+});
+
+// Index for staff queries
+dayOffSchema.index({ 
+    affectedStaff: 1, 
+    date: 1 
 });
 
 module.exports = mongoose.model('DayOff', dayOffSchema);

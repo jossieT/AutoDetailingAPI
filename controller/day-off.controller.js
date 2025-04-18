@@ -13,49 +13,34 @@ const createDayOff = catchAsync(async (req, res) => {
 
 // Get all day offs
 const getAllDayOffs = catchAsync(async (req, res) => {
-    const dayOffs = await dayOffService.getAllDayOffs();
+    const dayOffs = await dayOffService.getAllDayOffs(req.query);
     res.status(200).json({
         status: 'success',
+        count: dayOffs.length,
         data: dayOffs
     });
 });
 
 // Update a day off
 const updateDayOff = catchAsync(async (req, res) => {
-    const { dayOffId } = req.params;
-    const updateData = {
-        ...req.body,
-        // If timeRange is provided in separate fields, combine them
-        ...(req.body.startTime && req.body.endTime && {
-            timeRange: {
-                startTime: req.body.startTime,
-                endTime: req.body.endTime
-            }
-        })
-    };
-
-    // Remove individual time fields if they were combined into timeRange
-    if (updateData.timeRange) {
-        delete updateData.startTime;
-        delete updateData.endTime;
-    }
-
-    const updatedDayOff = await dayOffService.updateDayOff(dayOffId, updateData);
+    const updatedDayOff = await dayOffService.updateDayOff(
+        req.params.dayOffId,
+        req.body
+    );
     
     res.status(200).json({
         status: 'success',
-        message: 'Day off updated successfully',
-        data: updatedDayOff
+        data: updatedDayOff,
+        message: 'Day off updated successfully'
     });
 });
 
 // Delete a day off
 const deleteDayOff = catchAsync(async (req, res) => {
-    const { date } = req.params;
-    await dayOffService.deleteDayOff(date);
+    await dayOffService.deleteDayOff(req.params.dayOffId);
     res.status(200).json({
         status: 'success',
-        message: "Day off deleted successfully and availability restored."
+        message: 'Day off deleted successfully and availability restored'
     });
 });
 
@@ -67,10 +52,43 @@ const getDayOffsByDate = catchAsync(async (req, res) => {
     });
 });
 
+const createGlobalDayOff = catchAsync(async (req, res) => {
+    const dayOff = await dayOffService.createDayOff(req.body, true);
+    res.status(201).json({
+        status: 'success',
+        data: dayOff
+    });
+});
+
+const createStaffDayOff = catchAsync(async (req, res) => {
+    const dayOff = await dayOffService.createDayOff(req.body, false, req.body.staffIds);
+    res.status(201).json({
+        status: 'success',
+        data: dayOff
+    });
+});
+
+const createPartialDayOff = catchAsync(async (req, res) => {
+    const { isGlobal } = req.body;
+    const dayOff = await dayOffService.createPartialDayOff(
+        req.body, 
+        isGlobal,
+        req.body.staffIds || []
+    );
+    
+    res.status(201).json({
+        status: 'success',
+        data: dayOff
+    });
+});
+
 module.exports = {
     createDayOff,
     getAllDayOffs,
     deleteDayOff,
     updateDayOff,
-    getDayOffsByDate
+    getDayOffsByDate,
+    createGlobalDayOff,
+    createStaffDayOff,
+    createPartialDayOff
 };

@@ -2,129 +2,79 @@ const DayOff = require('../model/day-off.model');
 const WorkingHours = require('../model/working.hours.model');
 const { ApiError } = require('../utils/ApiError');
 const httpStatus = require('http-status');
+const User = require('../model/user.model');
+const { updateGlobalAvailability } = require('./booking.service');
 
-const createDayOff = async (data) => {
-    const { date, reason, startTime, endTime, isFullDay } = data;
-
-    // Find or initialize working hours for the given date
-    let workingHours = await WorkingHours.findOne({ date: new Date(date) });
-
-    // If working hours don't exist, initialize them
-    if (!workingHours) {
-        const timeSlots = generateTimeSlots('6:00 AM', '7:00 PM', 30);
-        workingHours = new WorkingHours({
-            date: new Date(date),
-            availableSlots: timeSlots,
-            unavailableSlots: [],
-            dayOff: false,
-            partialDayOff: [],
-        });
-    }
-
-    // Check if it's already marked as full day off
-    if (workingHours.dayOff) {
-        throw new ApiError(httpStatus.BAD_REQUEST, 'This day is already marked as a full day off');
-    }
-
-    if (isFullDay) {
-        // Check if there are any existing partial day-offs
-        const existingDayOffs = await DayOff.find({
-            date: new Date(date),
-            isFullDay: false,
-            status: 'active'
-        });
-
-        if (existingDayOffs.length > 0) {
-            throw new ApiError(
-                httpStatus.BAD_REQUEST,
-                'Cannot mark full day off when partial day-offs exist'
-            );
-        }
-
-        // Handle full day off
-        workingHours.dayOff = true;
-        workingHours.unavailableSlots = [...workingHours.unavailableSlots, ...workingHours.availableSlots];
-        workingHours.availableSlots = [];
-        workingHours.partialDayOff = [];
-    } else {
-        // Validate that we have both start and end times for partial day off
-        if (!startTime || !endTime) {
-            throw new ApiError(
-                httpStatus.BAD_REQUEST,
-                'Both start time and end time are required for partial day off'
-            );
-        }
-
-        // Check for overlapping time ranges
-        const existingDayOffs = await DayOff.find({
-            date: new Date(date),
-            isFullDay: false,
-            status: 'active'
-        });
-
-        const newStart = parseAMPM(startTime);
-        const newEnd = parseAMPM(endTime);
-
-        for (const dayOff of existingDayOffs) {
-            const existingStart = parseAMPM(dayOff.timeRange.startTime);
-            const existingEnd = parseAMPM(dayOff.timeRange.endTime);
-
-            if (
-                (newStart >= existingStart && newStart < existingEnd) ||
-                (newEnd > existingStart && newEnd <= existingEnd) ||
-                (newStart <= existingStart && newEnd >= existingEnd)
-            ) {
-                throw new ApiError(
-                    httpStatus.BAD_REQUEST,
-                    `Time range overlaps with existing day-off (${dayOff.timeRange.startTime} - ${dayOff.timeRange.endTime})`
-                );
-            }
-        }
-
-        // Generate slots between start and end time
-        const affectedSlots = generateTimeSlots(startTime, endTime, 30);
-
-        // Check if any of these slots are already marked as unavailable
-        const unavailableSlots = affectedSlots.filter(slot =>
-            workingHours.unavailableSlots.includes(slot)
-        );
-
-        if (unavailableSlots.length > 0) {
-            throw new ApiError(
-                httpStatus.BAD_REQUEST,
-                `Some slots are already marked as unavailable: ${unavailableSlots.join(', ')}`
-            );
-        }
-
-        // Add the new partial day off
-        workingHours.partialDayOff.push({
-            startTime,
-            endTime,
-            reason
-        });
-
-        // Update available and unavailable slots
-        workingHours.unavailableSlots = [...workingHours.unavailableSlots, ...affectedSlots];
-        workingHours.availableSlots = workingHours.availableSlots.filter(
-            slot => !affectedSlots.includes(slot)
-        );
-    }
-
-    await workingHours.save();
-
-    // Create the day off record
-    const dayOff = await DayOff.create({
-        date: new Date(date),
-        reason,
-        isFullDay,
-        timeRange: isFullDay ? undefined : { startTime, endTime }
+const createDayOff = async (dateData, isGlobal = false, affectedStaff = []) => {
+    const dayOffDate = new Date(dateData.date);
+    
+    // Create DayOff document
+    const dayOffRecord = await DayOff.create({
+        date: dayOffDate,
+        reason: dateData.reason,
+        isGlobal,
+        isFullDay: true,
+        affectedStaff
     });
 
-    return dayOff;
+    // Update WorkingHours
+    await WorkingHours.findOneAndUpdate(
+        { date: dayOffDate, isGlobal: true },
+        {
+            $set: {
+                dayOff: true,
+                unavailableSlots: getAllTimeSlots(),
+                availableSlots: []
+            }
+        },
+        { upsert: true, new: true }
+    );
+
+    return dayOffRecord;
 };
 
-const getAllDayOffs = async () => {
-    return await DayOff.find();
+const getAllTimeSlots = () => {
+    const slots = [];
+    const startHour = 6; // 6 AM
+    const endHour = 18; // 7 PM (19:00)
+    
+    for (let hour = startHour; hour <= endHour; hour++) {
+        for (let minute of ['00', '30']) {
+            const period = hour >= 12 ? 'PM' : 'AM';
+            let displayHour = hour % 12 || 12; // Convert 0 to 12 for 12 AM/PM
+            if (hour > 12) displayHour = hour - 12;
+            
+            slots.push(`${displayHour}:${minute} ${period}`);
+        }
+    }
+    return slots;
+};
+
+const getAllDayOffs = async (filters = {}) => {
+    const query = {};
+    
+    // Date range filter
+    if (filters.startDate || filters.endDate) {
+        query.date = {};
+        if (filters.startDate) query.date.$gte = new Date(filters.startDate);
+        if (filters.endDate) query.date.$lte = new Date(filters.endDate);
+    }
+
+    // Type filter
+    if (filters.type) {
+        if (filters.type === 'global') query.isGlobal = true;
+        if (filters.type === 'staff') query.isGlobal = false;
+    }
+
+    // Staff filter
+    if (filters.staffId) {
+        query.affectedStaff = filters.staffId;
+    }
+
+    return await DayOff.find(query)
+        .sort({ date: -1 })
+        .populate('affectedStaff', 'name email')
+        .lean();
 };
 
 const updateDayOff = async (dayOffId, updateData) => {
@@ -133,33 +83,69 @@ const updateDayOff = async (dayOffId, updateData) => {
         throw new ApiError(httpStatus.NOT_FOUND, 'Day off not found');
     }
 
-    // If updating time range for a partial day off
+    // Handle time range updates for partial day-offs
     if (!dayOff.isFullDay && (updateData.timeRange || updateData.startTime || updateData.endTime)) {
-        const startTime = updateData.timeRange?.startTime || updateData.startTime || dayOff.timeRange.startTime;
-        const endTime = updateData.timeRange?.endTime || updateData.endTime || dayOff.timeRange.endTime;
+        const oldStart = updateData.timeRange?.startTime || dayOff.timeRange.startTime;
+        const oldEnd = updateData.timeRange?.endTime || dayOff.timeRange.endTime;
+        const newStart = updateData.startTime || oldStart;
+        const newEnd = updateData.endTime || oldEnd;
 
-        // Update working hours
-        const workingHours = await WorkingHours.findOne({ date: dayOff.date });
-        if (workingHours) {
-            // Remove old time slots
-            const oldSlots = generateTimeSlots(dayOff.timeRange.startTime, dayOff.timeRange.endTime, 30);
-            workingHours.unavailableSlots = workingHours.unavailableSlots.filter(
-                slot => !oldSlots.includes(slot)
+        const oldSlots = generateTimeSlots(oldStart, oldEnd, 30);
+        const newSlots = generateTimeSlots(newStart, newEnd, 30);
+
+        const updateOperation = {
+            $pull: { unavailableSlots: { $in: oldSlots } },
+            $addToSet: { availableSlots: { $each: oldSlots } },
+            $addToSet: { unavailableSlots: { $each: newSlots } },
+            $pull: { availableSlots: { $in: newSlots } }
+        };
+
+        const query = dayOff.isGlobal ? 
+            { date: dayOff.date, isGlobal: true } :
+            { date: dayOff.date, staff: { $in: dayOff.affectedStaff } };
+
+        await WorkingHours.updateMany(query, updateOperation);
+    }
+
+    // Handle staff changes
+    if (updateData.staffIds) {
+        const removedStaff = dayOff.affectedStaff.filter(
+            staffId => !updateData.staffIds.includes(staffId.toString())
+        );
+        
+        // Remove day-off from removed staff
+        if (removedStaff.length > 0) {
+            const slots = dayOff.isFullDay ? 
+                getAllTimeSlots() :
+                generateTimeSlots(dayOff.timeRange.startTime, dayOff.timeRange.endTime, 30);
+
+            await WorkingHours.updateMany(
+                { date: dayOff.date, staff: { $in: removedStaff } },
+                {
+                    $pull: { unavailableSlots: { $in: slots } },
+                    $addToSet: { availableSlots: { $each: slots } }
+                }
             );
-            workingHours.availableSlots.push(...oldSlots);
-
-            // Add new time slots
-            const newSlots = generateTimeSlots(startTime, endTime, 30);
-            workingHours.unavailableSlots.push(...newSlots);
-            workingHours.availableSlots = workingHours.availableSlots.filter(
-                slot => !newSlots.includes(slot)
-            );
-
-            await workingHours.save();
         }
 
-        // Update the day off record
-        updateData.timeRange = { startTime, endTime };
+        // Add day-off to new staff
+        const newStaff = updateData.staffIds.filter(
+            staffId => !dayOff.affectedStaff.includes(staffId)
+        );
+
+        if (newStaff.length > 0) {
+            const slots = dayOff.isFullDay ? 
+                getAllTimeSlots() :
+                generateTimeSlots(dayOff.timeRange.startTime, dayOff.timeRange.endTime, 30);
+
+            await WorkingHours.updateMany(
+                { date: dayOff.date, staff: { $in: newStaff } },
+                {
+                    $addToSet: { unavailableSlots: { $each: slots } },
+                    $pull: { availableSlots: { $in: slots } }
+                }
+            );
+        }
     }
 
     const updatedDayOff = await DayOff.findByIdAndUpdate(
@@ -177,32 +163,23 @@ const deleteDayOff = async (dayOffId) => {
         throw new ApiError(httpStatus.NOT_FOUND, 'Day off not found');
     }
 
-    // Update working hours
-    const workingHours = await WorkingHours.findOne({ date: dayOff.date });
-    if (workingHours) {
-        if (dayOff.isFullDay) {
-            workingHours.dayOff = false;
-            workingHours.availableSlots = generateTimeSlots('6:00 AM', '7:00 PM', 30);
-            workingHours.unavailableSlots = [];
-        } else {
-            const slotsToRelease = generateTimeSlots(
-                dayOff.timeRange.startTime,
-                dayOff.timeRange.endTime,
-                30
-            );
-            workingHours.unavailableSlots = workingHours.unavailableSlots.filter(
-                slot => !slotsToRelease.includes(slot)
-            );
-            workingHours.availableSlots.push(...slotsToRelease);
-            workingHours.partialDayOff = workingHours.partialDayOff.filter(
-                pdo => pdo.startTime !== dayOff.timeRange.startTime ||
-                    pdo.endTime !== dayOff.timeRange.endTime
-            );
-        }
-        await workingHours.save();
-    }
+    const slots = dayOff.isFullDay ? 
+        getAllTimeSlots() :
+        generateTimeSlots(dayOff.timeRange.startTime, dayOff.timeRange.endTime, 30);
 
+    const updateOperation = {
+        $set: { dayOff: false }, // Reset dayOff flag
+        $pull: { unavailableSlots: { $in: slots } },
+        $addToSet: { availableSlots: { $each: slots } }
+    };
+
+    const query = dayOff.isGlobal ?
+        { date: dayOff.date, isGlobal: true } :
+        { date: dayOff.date, staff: { $in: dayOff.affectedStaff } };
+
+    await WorkingHours.updateMany(query, updateOperation);
     await DayOff.findByIdAndDelete(dayOffId);
+
     return { message: 'Day off deleted successfully' };
 };
 
@@ -232,7 +209,7 @@ const generateTimeSlots = (startTime, endTime, intervalMinutes) => {
         endMinutes
     );
 
-    while (current < end) {
+    while (current <= end) {
         slots.push(formatTime(current));
         current.setMinutes(current.getMinutes() + intervalMinutes);
     }
@@ -267,10 +244,73 @@ const parseAMPM = (timeStr) => {
     return formattedHours * 60 + minutes;
 };
 
+const createPartialDayOff = async (dateData, isGlobal, affectedStaff = []) => {
+    const dayOffDate = new Date(dateData.date);
+    
+    // Generate time slots including end time
+    const timeSlots = generateTimeSlots(
+        dateData.startTime, 
+        dateData.endTime, 
+        30
+    );
+
+    // Check and initialize working hours if needed
+    const query = isGlobal ?
+        { date: dayOffDate, isGlobal: true } :
+        { date: dayOffDate, staff: { $in: affectedStaff } };
+
+    // Initialize working hours if they don't exist
+    await WorkingHours.findOneAndUpdate(
+        query,
+        {
+            $setOnInsert: {
+                availableSlots: getAllTimeSlots(),
+                unavailableSlots: [],
+                dayOff: false
+            }
+        },
+        { upsert: true }
+    );
+
+    // Update operation to move slots
+    const updateOperation = {
+        $addToSet: { unavailableSlots: { $each: timeSlots } },
+        $pull: { availableSlots: { $in: timeSlots } }
+    };
+
+    if (isGlobal) {
+        // Update global working hours
+        await WorkingHours.updateOne(
+            query,
+            updateOperation
+        );
+    } else {
+        // Update staff-specific working hours
+        await WorkingHours.updateMany(
+            query,
+            updateOperation
+        );
+    }
+
+    // Create day-off record
+    return await DayOff.create({
+        date: dayOffDate,
+        reason: dateData.reason,
+        isGlobal,
+        isFullDay: false,
+        timeRange: {
+            startTime: dateData.startTime,
+            endTime: dateData.endTime
+        },
+        affectedStaff
+    });
+};
+
 module.exports = {
     createDayOff,
     getAllDayOffs,
     updateDayOff,
     deleteDayOff,
-    getDayOffsByDate
+    getDayOffsByDate,
+    createPartialDayOff
 };

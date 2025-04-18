@@ -54,7 +54,7 @@ const initializeWorkingHours = async (date) => {
                 {
                     $setOnInsert: {
                         availableSlots: [],
-                        unavailableSlots: [],
+            unavailableSlots: [],
                         dayOff: false
                     }
                 },
@@ -137,6 +137,17 @@ const initializeWorkingHours = async (date) => {
 const getAvailableSlots = async (date) => {
     const bookingDate = new Date(date);
     
+    // Check for global day off first
+    const globalDayOff = await WorkingHours.findOne({
+        date: bookingDate,
+        isGlobal: true,
+        dayOff: true
+    });
+
+    if (globalDayOff) {
+        return []; // Return empty array for available slots
+    }
+
     // Check if working hours already exist before initializing
     const existingGlobalHours = await WorkingHours.findOne({
         date: bookingDate,
@@ -443,19 +454,19 @@ const createBooking = async (bookingData) => {
             throw new ApiError(httpStatus.BAD_REQUEST, 'At least one service must be selected');
         }
 
-        const workingHours = await WorkingHours.findOne({ date: new Date(appointmentDate) });
+    const workingHours = await WorkingHours.findOne({ date: new Date(appointmentDate) });
 
-        if (!workingHours) throw new ApiError(httpStatus.NOT_FOUND, 'Working hours not initialized for the selected date.');
+    if (!workingHours) throw new ApiError(httpStatus.NOT_FOUND, 'Working hours not initialized for the selected date.');
 
-        if (workingHours.dayOff) throw new ApiError(httpStatus.BAD_REQUEST, 'No bookings allowed on a full day off.');
+    if (workingHours.dayOff) throw new ApiError(httpStatus.BAD_REQUEST, 'No bookings allowed on a full day off.');
 
-        if (workingHours.partialDayOff.includes(serviceStartingTime)) {
-            throw new ApiError(httpStatus.BAD_REQUEST, 'Selected time slot falls within a partial day-off.');
-        }
+    if (workingHours.partialDayOff.includes(serviceStartingTime)) {
+        throw new ApiError(httpStatus.BAD_REQUEST, 'Selected time slot falls within a partial day-off.');
+    }
 
-        // Calculate bookingEndTime based on selected services and vehicle type
+    // Calculate bookingEndTime based on selected services and vehicle type
         console.log(`Parsing service starting time: ${serviceStartingTime}`);
-        const bookingStart = parseAMPM(serviceStartingTime);
+    const bookingStart = parseAMPM(serviceStartingTime);
         
         if (!bookingStart || isNaN(bookingStart.getTime())) {
             throw new ApiError(
@@ -464,7 +475,7 @@ const createBooking = async (bookingData) => {
             );
         }
 
-        // Populate service details to calculate the duration
+    // Populate service details to calculate the duration
         const services = await Service.find({ _id: { $in: service_ids } }, 'duration name');
         
         if (!services || services.length === 0) {
@@ -475,41 +486,41 @@ const createBooking = async (bookingData) => {
             ? await AddOnService.find({ _id: { $in: bookingData.selectedAddOns } }, 'duration name') 
             : [];
 
-        let totalDuration = 0;
-        const serviceDuration = services.reduce((total, service) => {
-            if (!service.duration || !service.duration[vehicleDetails.carType]) {
+    let totalDuration = 0;
+    const serviceDuration = services.reduce((total, service) => {
+        if (!service.duration || !service.duration[vehicleDetails.carType]) {
                 throw new ApiError(
                     httpStatus.BAD_REQUEST, 
                     `Service ${service.name || service._id} does not have a duration for ${vehicleDetails.carType}.`
                 );
-            }
-            return total + service.duration[vehicleDetails.carType];
-        }, 0);
+        }
+        return total + service.duration[vehicleDetails.carType];
+    }, 0);
 
-        totalDuration += serviceDuration;
+    totalDuration += serviceDuration;
 
-        const addOnDuration = addOns.reduce((total, addOn) => {
-            if (!addOn.duration) {
+    const addOnDuration = addOns.reduce((total, addOn) => {
+        if (!addOn.duration) {
                 throw new ApiError(httpStatus.BAD_REQUEST, `Add-On ${addOn.name || addOn._id} does not have a duration.`);
-            }
-            return total + addOn.duration;
-        }, 0);
+        }
+        return total + addOn.duration;
+    }, 0);
 
         if (selectedAddOns && selectedAddOns.length > 0) {
-            totalDuration += addOnDuration;
-        }
+        totalDuration += addOnDuration;
+    }
 
         // Add the total duration to the booking data for reference
         bookingData.totalDuration = totalDuration;
 
-        // Generate the time range to block (serviceStartingTime to bookingEndTime + 1 hour)
-        const bookingEnd = new Date(bookingStart.getTime() + totalDuration * 60 * 1000);
+    // Generate the time range to block (serviceStartingTime to bookingEndTime + 1 hour)
+    const bookingEnd = new Date(bookingStart.getTime() + totalDuration * 60 * 1000);
         
         if (!bookingEnd || isNaN(bookingEnd.getTime())) {
             throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Failed to calculate booking end time');
         }
         
-        const extendedEnd = new Date(bookingEnd.getTime() + 1 * 60 * 60 * 1000);
+    const extendedEnd = new Date(bookingEnd.getTime() + 1 * 60 * 60 * 1000);
 
         // Generate slotsToBlock before validation
         const validationSlots = [];
@@ -622,8 +633,8 @@ const createBooking = async (bookingData) => {
             duration: totalDuration
         });
         
-        const newBooking = await Booking.create(bookingData);
-        
+    const newBooking = await Booking.create(bookingData);
+
         if (!newBooking) {
             throw new ApiError(
                 httpStatus.INTERNAL_SERVER_ERROR,
@@ -713,21 +724,21 @@ const createBooking = async (bookingData) => {
             // Don't fail the booking creation if staff assignment fails
         }
 
-        // Fetch service information for email templates
-        const serviceInfo = await Service.find({ _id: { $in: service_ids } });
-        const addOnInfo = await AddOnService.find({ _id: { $in: bookingData.selectedAddOns } }).lean();
-        // Format booking end time
-        const calculatedBookingEndTime = formatAMPM(bookingEnd);
+    // Fetch service information for email templates
+    const serviceInfo = await Service.find({ _id: { $in: service_ids } });
+    const addOnInfo = await AddOnService.find({ _id: { $in: bookingData.selectedAddOns } }).lean();
+    // Format booking end time
+    const calculatedBookingEndTime = formatAMPM(bookingEnd);
 
         // Send email notifications - wrapped in try/catch to prevent failures from stopping the process
         if (bookingData.clientDetails && bookingData.clientDetails.email) {
             try {
-                const clientEmailOptions = {
-                    from: process.env.EMAIL_USER,
-                    to: bookingData.clientDetails.email,
-                    subject: ' Booking Received – Pending Confirmation',
-                    html: bookingConfirmationTemplate(newBooking, serviceInfo, calculatedBookingEndTime, addOnInfo),
-                };
+    const clientEmailOptions = {
+        from: process.env.EMAIL_USER,
+        to: bookingData.clientDetails.email,
+        subject: ' Booking Received – Pending Confirmation',
+        html: bookingConfirmationTemplate(newBooking, serviceInfo, calculatedBookingEndTime, addOnInfo),
+    };
 
                 await transporter.sendMail(clientEmailOptions);
                 console.log('Client confirmation email sent successfully');
@@ -741,16 +752,16 @@ const createBooking = async (bookingData) => {
 
         if (selectedStaff && selectedStaff.email) {
             try {
-                const staffEmailOptions = {
+    const staffEmailOptions = {
                     from: process.env.ADMINEMAIL_USER,
                     to: selectedStaff.email,
-                    subject: 'New Booking Assigned',
+        subject: 'New Booking Assigned',
                     html: staffNotificationTemplate(newBooking, selectedStaff, serviceInfo, calculatedBookingEndTime, addOnInfo),
-                };
+    };
 
                 await adminTransporter.sendMail(staffEmailOptions);
                 console.log('Staff notification email sent successfully');
-            } catch (error) {
+    } catch (error) {
                 console.error('Failed to send staff email:', error.message);
                 // Don't allow email failures to affect booking creation
             }
@@ -762,7 +773,7 @@ const createBooking = async (bookingData) => {
         try {
             await updateGlobalAvailability(bookingData.appointmentDate, bookingData.serviceStartingTime);
             console.log(`Final global availability update for ${bookingData.serviceStartingTime} completed`);
-        } catch (error) {
+    } catch (error) {
             console.error('Error during final global availability update:', error.message);
             // Don't allow failures here to affect booking creation
         }
@@ -788,7 +799,7 @@ const createBooking = async (bookingData) => {
         
         console.log('Current staff assignments:', staffSummary);
 
-        return newBooking;
+    return newBooking;
     } catch (error) {
         console.error('Booking Failed:', error.message);
         throw error;
@@ -837,7 +848,7 @@ const updateBookingById = async (bookingId, updateData) => {
     if (!booking) {
         throw new ApiError(httpStatus.NOT_FOUND, 'Booking not found');
     }
-    
+
     // If updating appointment date or time, validate availability
     if (updateData.appointmentDate || updateData.serviceStartingTime) {
         const date = updateData.appointmentDate || booking.appointmentDate;
@@ -908,7 +919,7 @@ const deleteBookingById = async (bookingId, deletedByUserId) => {
                 const end = parseAMPM(booking.bookingEndTime);
                 const bufferEnd = new Date(end.getTime() + 60 * 60 * 1000);
 
-                const slotsToRelease = [];
+            const slotsToRelease = [];
                 for (let t = new Date(start); t <= bufferEnd; t.setMinutes(t.getMinutes() + 30)) {
                     slotsToRelease.push(formatAMPM(new Date(t)));
                 }
@@ -980,7 +991,7 @@ const approveBooking = async (bookingId) => {
     await booking.save();
 
     const serviceInfo = await Service.find({ _id: { $in: booking.service_ids } });
-   
+
     const addOnInfo = await AddOnService.find({ _id: { $in: booking.selectedAddOns } }).lean();
     //const calculatedBookingEndTime = formatAMPM(bookingEnd);
     // Send email notification to client
@@ -1070,7 +1081,7 @@ const cancelBooking = async (bookingId) => {
     // Send cancellation email
     const serviceInfo = await Service.find({ _id: { $in: booking.service_ids } });
     const addOnInfo = await AddOnService.find({ _id: { $in: booking.selectedAddOns } }).lean();
-    
+
     const clientEmailOptions = {
         from: process.env.EMAIL_USER,
         to: booking.clientDetails.email,
@@ -1153,38 +1164,29 @@ const rotateStaffAssignment = async () => {
 
 const updateGlobalAvailability = async (date, timeSlot) => {
     const bookingDate = new Date(date);
-    const allStaffHours = await WorkingHours.find({
+    const allStaff = await User.find({ role: 'staff' });
+    
+    const staffAvailability = await WorkingHours.find({
         date: bookingDate,
-        staff: { $exists: true }
+        staff: { $in: allStaff.map(s => s._id) }
     });
 
-    // Consider only staff not on day off
-    const availableStaffHours = allStaffHours.filter(wh => !wh.dayOff);
-    
-    // If no staff available, mark slot as unavailable
-    if (availableStaffHours.length === 0) {
-        await WorkingHours.updateOne(
-            { date: bookingDate, staff: { $exists: false } },
-            { $addToSet: { unavailableSlots: timeSlot } },
-            { upsert: true }
-        );
-        return;
-    }
-
-    // Check if all available staff have slot blocked
-    const allBooked = availableStaffHours.every(wh => 
-        wh.unavailableSlots.includes(timeSlot)
+    // Check if any available staff can take the slot
+    const hasAvailableStaff = staffAvailability.some(wh => 
+        !wh.dayOff && 
+        wh.availableSlots.includes(timeSlot) &&
+        !wh.unavailableSlots.includes(timeSlot)
     );
 
-    if (allBooked) {
+    if (!hasAvailableStaff) {
         await WorkingHours.updateOne(
-            { date: bookingDate, staff: { $exists: false } },
+            { date: bookingDate, isGlobal: true },
             { $addToSet: { unavailableSlots: timeSlot } },
             { upsert: true }
         );
     } else {
         await WorkingHours.updateOne(
-            { date: bookingDate, staff: { $exists: false } },
+            { date: bookingDate, isGlobal: true },
             { $pull: { unavailableSlots: timeSlot } }
         );
     }
@@ -1241,5 +1243,6 @@ module.exports = {
     cancelBooking,
     markAsCompleted,
     getDeletedBookings,
-    getWorkingHoursBreakdown
+    getWorkingHoursBreakdown,
+    updateGlobalAvailability
 };

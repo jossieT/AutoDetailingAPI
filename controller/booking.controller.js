@@ -20,8 +20,8 @@ const getAvailableSlots = catchAsync(async (req, res) => {
 // Create a new booking
 const createBooking = catchAsync(async (req, res) => {
     // Handle image uploads
-    let imageUrls = [];
-    if (req.files && req.files.length > 0) {
+   let imageUrls = [];
+        if (req.files && req.files.length > 0) {
         imageUrls = req.files.map(file => ({
             url: file.path,
             description: ''
