@@ -22,7 +22,7 @@ const dayOffSchema = new mongoose.Schema({
     },
     isFullDay: { 
         type: Boolean, 
-        default: true 
+        default: false 
     },
     timeRange: {
         startTime: {

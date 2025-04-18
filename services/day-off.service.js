@@ -5,32 +5,56 @@ const httpStatus = require('http-status');
 const User = require('../model/user.model');
 const { updateGlobalAvailability } = require('./booking.service');
 
-const createDayOff = async (dateData, isGlobal = false, affectedStaff = []) => {
+const createDayOff = async (dateData, isGlobal, affectedStaff = [], isFullDay = true) => {
     const dayOffDate = new Date(dateData.date);
     
-    // Create DayOff document
-    const dayOffRecord = await DayOff.create({
+    // Generate time slots if partial day-off
+    const slots = isFullDay ? 
+        getAllTimeSlots() :
+        generateTimeSlots(dateData.timeRange.startTime, dateData.timeRange.endTime, 30);
+
+    // Check and initialize working hours if needed
+    const query = isGlobal ?
+        { date: dayOffDate, isGlobal: true } :
+        { date: dayOffDate, staff: { $in: affectedStaff } };
+
+    // Initialize working hours if they don't exist
+    await WorkingHours.findOneAndUpdate(
+        query,
+        {
+            $setOnInsert: {
+                availableSlots: getAllTimeSlots(),
+                unavailableSlots: [],
+                dayOff: false
+            }
+        },
+        { upsert: true }
+    );
+
+    // Update operation to move slots
+    const updateOperation = {
+        $addToSet: { unavailableSlots: { $each: slots } },
+        $pull: { availableSlots: { $in: slots } }
+    };
+
+    if (isGlobal) {
+        await WorkingHours.updateOne(query, updateOperation);
+    } else {
+        await WorkingHours.updateMany(query, updateOperation);
+    }
+
+    // Create day-off record
+    return await DayOff.create({
         date: dayOffDate,
         reason: dateData.reason,
         isGlobal,
-        isFullDay: true,
+        isFullDay,
+        timeRange: isFullDay ? undefined : {
+            startTime: dateData.timeRange.startTime,
+            endTime: dateData.timeRange.endTime
+        },
         affectedStaff
     });
-
-    // Update WorkingHours
-    await WorkingHours.findOneAndUpdate(
-        { date: dayOffDate, isGlobal: true },
-        {
-            $set: {
-                dayOff: true,
-                unavailableSlots: getAllTimeSlots(),
-                availableSlots: []
-            }
-        },
-        { upsert: true, new: true }
-    );
-
-    return dayOffRecord;
 };
 
 const getAllTimeSlots = () => {

@@ -4,37 +4,18 @@ const timePattern = /^(1[0-2]|0?[1-9]):([0-5][0-9]) (AM|PM)$/;
 
 const createDayOffSchema = {
     body: joi.object().keys({
-        date: joi.date().required(),
+        date: joi.date().iso().required(),
         reason: joi.string().required(),
-        isFullDay: joi.boolean().default(false),
-        startTime: joi.string().pattern(timePattern)
-            .message('Start time must be in format "HH:MM AM/PM"')
-            .when('isFullDay', {
-                is: true,
-                then: joi.optional(),
-                otherwise: joi.required()
-            }),
-        endTime: joi.string().pattern(timePattern)
-            .message('End time must be in format "HH:MM AM/PM"')
-            .when('isFullDay', {
-                is: true,
-                then: joi.optional(),
-                otherwise: joi.required()
-            })
-    }).custom((value, helpers) => {
-        if (!value.isFullDay && value.startTime && value.endTime) {
-            const start = convertTo24Hour(value.startTime);
-            const end = convertTo24Hour(value.endTime);
-            
-            const startDate = new Date(`1970-01-01T${start}`);
-            const endDate = new Date(`1970-01-01T${end}`);
-            
-            if (startDate >= endDate) {
-                return helpers.error('End time must be after start time');
-            }
-        }
-        return value;
-    }),
+        isFullDay: joi.boolean().required(),
+        startTime: joi.when('isFullDay', {
+            is: false,
+            then: joi.string().pattern(timePattern).required()
+        }),
+        endTime: joi.when('isFullDay', {
+            is: false,
+            then: joi.string().pattern(timePattern).required()
+        })
+    })
 };
 
 const deleteDayOffSchema = {
@@ -76,13 +57,22 @@ const createDayOff = {
     })
 };
 
-const createStaffDayOff = {
+const createStaffDayOffSchema = {
     body: joi.object().keys({
         date: joi.date().iso().required(),
         reason: joi.string().required(),
+        isFullDay: joi.boolean().required(),
         staffIds: joi.array().items(
             joi.string().hex().length(24)
-        ).required()
+        ).required(),
+        startTime: joi.when('isFullDay', {
+            is: false,
+            then: joi.string().pattern(timePattern).required()
+        }),
+        endTime: joi.when('isFullDay', {
+            is: false,
+            then: joi.string().pattern(timePattern).required()
+        })
     })
 };
 
@@ -125,6 +115,6 @@ module.exports = {
     updateDayOffSchema,
     getDayOffsSchema,
     createDayOff,
-    createStaffDayOff,
+    createStaffDayOffSchema,
     createPartialDayOffSchema
 }; 

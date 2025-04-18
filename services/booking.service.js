@@ -55,7 +55,8 @@ const initializeWorkingHours = async (date) => {
                     $setOnInsert: {
                         availableSlots: [],
             unavailableSlots: [],
-                        dayOff: false
+            dayOff: false,
+                        isGlobal: true
                     }
                 },
                 { upsert: true, new: true }

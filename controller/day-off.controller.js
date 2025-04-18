@@ -1,5 +1,6 @@
 const catchAsync = require('../utils/catchAsync');
 const dayOffService = require('../services/day-off.service');
+const httpStatus = require('http-status');
 
 // Create a new day off
 const createDayOff = catchAsync(async (req, res) => {
@@ -53,19 +54,25 @@ const getDayOffsByDate = catchAsync(async (req, res) => {
 });
 
 const createGlobalDayOff = catchAsync(async (req, res) => {
-    const dayOff = await dayOffService.createDayOff(req.body, true);
-    res.status(201).json({
-        status: 'success',
-        data: dayOff
-    });
+    const { isFullDay, startTime, endTime, ...rest } = req.body;
+    const dayOff = await dayOffService.createDayOff(
+        { ...rest, timeRange: { startTime, endTime } },
+        true,
+        [],
+        isFullDay
+    );
+    res.status(httpStatus.CREATED).send(dayOff);
 });
 
 const createStaffDayOff = catchAsync(async (req, res) => {
-    const dayOff = await dayOffService.createDayOff(req.body, false, req.body.staffIds);
-    res.status(201).json({
-        status: 'success',
-        data: dayOff
-    });
+    const { isFullDay, startTime, endTime, staffIds, ...rest } = req.body;
+    const dayOff = await dayOffService.createDayOff(
+        { ...rest, timeRange: { startTime, endTime } },
+        false,
+        staffIds,
+        isFullDay
+    );
+    res.status(httpStatus.CREATED).send(dayOff);
 });
 
 const createPartialDayOff = catchAsync(async (req, res) => {

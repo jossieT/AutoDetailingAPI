@@ -61,7 +61,7 @@ const { authenticate, adminAuth } = require('../middlewares/auth');
  * '/api/day-offs/global':
  *   post:
  *     tags: [Day Off Controller]
- *     summary: Create a global day-off
+ *     summary: Create a global day-off (full or partial)
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -73,29 +73,49 @@ const { authenticate, adminAuth } = require('../middlewares/auth');
  *             required:
  *               - date
  *               - reason
+ *               - isFullDay
  *             properties:
  *               date:
  *                 type: string
  *                 format: date
- *                 example: 2024-12-25
+ *                 example: 2024-12-10
  *               reason:
  *                 type: string
  *                 example: Company Holiday
+ *               isFullDay:
+ *                 type: boolean
+ *                 example: true
+ *               startTime:
+ *                 type: string
+ *                 pattern: '^(1[0-2]|0?[1-9]):[0-5][0-9] (AM|PM)$'
+ *                 example: 10:00 AM
+ *               endTime:
+ *                 type: string
+ *                 pattern: '^(1[0-2]|0?[1-9]):[0-5][0-9] (AM|PM)$'
+ *                 example: 2:00 PM
  *     responses:
  *       201:
- *         description: Global day-off created
+ *         description: Day-off created successfully
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/DayOff'
+ *       400:
+ *         description: Bad request
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       500:
+ *         description: Internal server error
  */
 
 /**
  * @openapi
- * '/api/day-offs/partial':
+ * '/api/day-offs/staff':
  *   post:
  *     tags: [Day Off Controller]
- *     summary: Create a partial day-off
+ *     summary: Create a staff day-off (full or partial)
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -107,8 +127,8 @@ const { authenticate, adminAuth } = require('../middlewares/auth');
  *             required:
  *               - date
  *               - reason
- *               - startTime
- *               - endTime
+ *               - isFullDay
+ *               - staffIds
  *             properties:
  *               date:
  *                 type: string
@@ -117,6 +137,9 @@ const { authenticate, adminAuth } = require('../middlewares/auth');
  *               reason:
  *                 type: string
  *                 example: Staff Training
+ *               isFullDay:
+ *                 type: boolean
+ *                 example: false
  *               startTime:
  *                 type: string
  *                 pattern: '^(1[0-2]|0?[1-9]):[0-5][0-9] (AM|PM)$'
@@ -132,51 +155,19 @@ const { authenticate, adminAuth } = require('../middlewares/auth');
  *                 example: [64f8f4e82d81c4357b041567]
  *     responses:
  *       201:
- *         description: Partial day-off created
+ *         description: Day-off created successfully
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/DayOff'
- */
-
-/**
- * @openapi
- * '/api/day-offs/staff':
- *   post:
- *     tags: [Day Off Controller]
- *     summary: Create a staff day-off
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - date
- *               - reason
- *               - staffIds
- *             properties:
- *               date:
- *                 type: string
- *                 format: date
- *                 example: 2024-12-10
- *               reason:
- *                 type: string
- *                 example: Personal Day
- *               staffIds:
- *                 type: array
- *                 items:
- *                   type: string
- *                 example: [64f8f4e82d81c4357b041567]
- *     responses:
- *       201:
- *         description: Staff day-off created
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/DayOff'
+ *       400:
+ *         description: Bad request
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       500:
+ *         description: Internal server error
  */
 
 /**
@@ -311,29 +302,22 @@ const { authenticate, adminAuth } = require('../middlewares/auth');
  *                 $ref: '#/components/schemas/DayOff'
  */
 
-// Create a new global day off
+// Create a new global day-off (full or partial)
 router.post('/api/day-offs/global', 
     authenticate,
     adminAuth,
-    validate(dayOffValidation.createDayOff),
+    validate(dayOffValidation.createDayOffSchema),
     dayOffController.createGlobalDayOff
 );
 
-// Create a new partial day off
-router.post('/api/day-offs/partial',
-    authenticate,
-    adminAuth,
-    validate(dayOffValidation.createPartialDayOffSchema),
-    dayOffController.createPartialDayOff
-);
-
-// Create a new staff day off
+// Create a new staff day-off (full or partial)
 router.post('/api/day-offs/staff',
     authenticate,
     adminAuth,
     validate(dayOffValidation.createStaffDayOff),
     dayOffController.createStaffDayOff
 );
+
 // Get all day offs
 router.get('/api/day-offs', 
     validate(dayOffValidation.getDayOffsSchema),
