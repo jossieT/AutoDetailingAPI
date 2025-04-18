@@ -314,7 +314,7 @@ router.post('/api/day-offs/global',
 router.post('/api/day-offs/staff',
     authenticate,
     adminAuth,
-    validate(dayOffValidation.createStaffDayOff),
+    validate(dayOffValidation.createStaffDayOffSchema),
     dayOffController.createStaffDayOff
 );
 
