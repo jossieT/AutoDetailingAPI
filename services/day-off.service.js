@@ -191,20 +191,26 @@ const deleteDayOff = async (dayOffId) => {
         getAllTimeSlots() :
         generateTimeSlots(dayOff.timeRange.startTime, dayOff.timeRange.endTime, 30);
 
-    const updateOperation = {
-        $set: { dayOff: false }, // Reset dayOff flag
-        $pull: { unavailableSlots: { $in: slots } },
-        $addToSet: { availableSlots: { $each: slots } }
-    };
-
     const query = dayOff.isGlobal ?
         { date: dayOff.date, isGlobal: true } :
         { date: dayOff.date, staff: { $in: dayOff.affectedStaff } };
 
-    await WorkingHours.updateMany(query, updateOperation);
+    // Update working hours to restore availability
+    await WorkingHours.updateMany(query, {
+        $set: { dayOff: false }, // Reset dayOff flag
+        $pull: { unavailableSlots: { $in: slots } },
+        $addToSet: { availableSlots: { $each: slots } }
+    });
+
+    // Delete the day-off record
     await DayOff.findByIdAndDelete(dayOffId);
 
-    return { message: 'Day off deleted successfully' };
+    // Update global availability for each restored slot
+    await Promise.all(slots.map(slot => 
+        updateGlobalAvailability(dayOff.date, slot)
+    ));
+
+    return { message: 'Day off deleted successfully and availability restored' };
 };
 
 const getDayOffsByDate = async (date) => {

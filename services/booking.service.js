@@ -1220,11 +1220,35 @@ const getWorkingHoursBreakdown = async (date) => {
     // Reuse existing availability calculation logic
     const globalAvailableSlots = await getAvailableSlots(date);
 
+    const filterSlots = (slots) => {
+        const timeToMinutes = (time) => {
+            const [hours, minutesPeriod] = time.split(':');
+            const [minutes, period] = minutesPeriod.split(' ');
+            const hoursIn24 = period === 'PM' && parseInt(hours) !== 12
+                ? parseInt(hours) + 12
+                : period === 'AM' && parseInt(hours) === 12
+                    ? 0
+                    : parseInt(hours);
+            return hoursIn24 * 60 + parseInt(minutes);
+        };
+
+        const startBoundary = timeToMinutes('06:00 AM');
+        const endBoundary = timeToMinutes('06:30 PM');
+
+        const filtered = slots.filter((slot) => {
+            const slotInMinutes = timeToMinutes(slot);
+            return slotInMinutes >= startBoundary && slotInMinutes <= endBoundary;
+        });
+
+        // Sort slots in ascending order
+        return filtered.sort((a, b) => timeToMinutes(a) - timeToMinutes(b));
+    };
+
     return {
         global: {
             date: bookingDate,
             availableSlots: globalAvailableSlots,
-            unavailableSlots: global?.unavailableSlots || [],
+            unavailableSlots: filterSlots(global?.unavailableSlots || []),
             dayOff: global?.dayOff || false
         },
         staff: staffHours
@@ -1232,8 +1256,8 @@ const getWorkingHoursBreakdown = async (date) => {
             .map(h => ({
                 staffId: h.staff?._id || 'unknown-staff-id',
                 staffName: h.staff?.name || 'Unknown Staff',
-                available: h.availableSlots,
-                unavailable: h.unavailableSlots,
+                available: filterSlots(h.availableSlots),
+                unavailable: filterSlots(h.unavailableSlots),
                 dayOff: h.dayOff
             }))
     };
