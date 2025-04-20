@@ -7,6 +7,7 @@ const createDayOffSchema = {
         date: joi.date().iso().required(),
         reason: joi.string().required(),
         isFullDay: joi.boolean().required(),
+        staffIds: joi.array().items(joi.string().hex().length(24)).allow(null).empty(''),
         startTime: joi.when('isFullDay', {
             is: false,
             then: joi.string().pattern(timePattern).required()
@@ -36,8 +37,7 @@ const updateDayOffSchema = {
             .when('isFullDay', { is: false, then: joi.required() }),
         endTime: joi.string().pattern(timePattern)
             .when('isFullDay', { is: false, then: joi.required() }),
-        staffIds: joi.array().items(joi.string().hex().length(24))
-            .when('isGlobal', { is: true, then: joi.forbidden() })
+        staffIds: joi.array().items(joi.string().hex().length(24)).allow(null).empty('').when('isGlobal', { is: true, then: joi.forbidden() })
     }).min(1)
 };
 
