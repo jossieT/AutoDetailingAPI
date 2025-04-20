@@ -155,6 +155,13 @@ const getAvailableSlots = async (date) => {
         staff: { $exists: false }
     });
 
+    if (existingGlobalHours) {
+        await WorkingHours.updateOne(
+            { _id: existingGlobalHours._id },
+            { $set: { isGlobal: true } }
+        );
+    }
+
     const existingStaffHours = await WorkingHours.find({
         date: bookingDate,
         staff: { $exists: true, $ne: null }
