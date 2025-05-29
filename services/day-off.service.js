@@ -4,10 +4,28 @@ const { ApiError } = require('../utils/ApiError');
 const httpStatus = require('http-status');
 const User = require('../model/user.model');
 const { updateGlobalAvailability } = require('./booking.service');
+const mongoose = require('mongoose');
 
 const createDayOff = async (dateData, isGlobal, affectedStaff = [], isFullDay = true) => {
     const dayOffDate = new Date(dateData.date);
     
+    // Check for existing bookings
+    const existingBookings = await mongoose.model('Booking').find({
+        appointmentDate: {
+            $gte: new Date(dayOffDate.setHours(0, 0, 0, 0)),
+            $lt: new Date(dayOffDate.setHours(23, 59, 59, 999))
+        },
+        status: { $in: ['Pending', 'Confirmed'] } // Only check active bookings
+    });
+
+    if (existingBookings.length > 0) {
+        throw new ApiError(
+            httpStatus.CONFLICT,
+            `Cannot create day off - ${existingBookings.length} active bookings exist for this date. ` +
+            'Please cancel or reschedule these bookings first.'
+        );
+    }
+
     // Generate time slots if partial day-off
     const slots = isFullDay ? 
         getAllTimeSlots() :
