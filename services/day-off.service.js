@@ -8,7 +8,7 @@ const mongoose = require('mongoose');
 
 const createDayOff = async (dateData, isGlobal, affectedStaff = [], isFullDay = true) => {
     const dayOffDate = new Date(dateData.date);
-    
+
     // Check for existing bookings
     const existingBookings = await mongoose.model('Booking').find({
         appointmentDate: {
@@ -27,7 +27,7 @@ const createDayOff = async (dateData, isGlobal, affectedStaff = [], isFullDay = 
     }
 
     // Generate time slots if partial day-off
-    const slots = isFullDay ? 
+    const slots = isFullDay ?
         getAllTimeSlots() :
         generateTimeSlots(dateData.timeRange.startTime, dateData.timeRange.endTime, 30);
 
@@ -79,13 +79,13 @@ const getAllTimeSlots = () => {
     const slots = [];
     const startHour = 6; // 6 AM
     const endHour = 18; // 7 PM (19:00)
-    
+
     for (let hour = startHour; hour <= endHour; hour++) {
         for (let minute of ['00', '30']) {
             const period = hour >= 12 ? 'PM' : 'AM';
             let displayHour = hour % 12 || 12; // Convert 0 to 12 for 12 AM/PM
             if (hour > 12) displayHour = hour - 12;
-            
+
             slots.push(`${displayHour}:${minute} ${period}`);
         }
     }
@@ -94,7 +94,7 @@ const getAllTimeSlots = () => {
 
 const getAllDayOffs = async (filters = {}) => {
     const query = {};
-    
+
     // Date range filter
     if (filters.startDate || filters.endDate) {
         query.date = {};
@@ -142,7 +142,7 @@ const updateDayOff = async (dayOffId, updateData) => {
             $pull: { availableSlots: { $in: newSlots } }
         };
 
-        const query = dayOff.isGlobal ? 
+        const query = dayOff.isGlobal ?
             { date: dayOff.date, isGlobal: true } :
             { date: dayOff.date, staff: { $in: dayOff.affectedStaff } };
 
@@ -154,10 +154,10 @@ const updateDayOff = async (dayOffId, updateData) => {
         const removedStaff = dayOff.affectedStaff.filter(
             staffId => !updateData.staffIds.includes(staffId.toString())
         );
-        
+
         // Remove day-off from removed staff
         if (removedStaff.length > 0) {
-            const slots = dayOff.isFullDay ? 
+            const slots = dayOff.isFullDay ?
                 getAllTimeSlots() :
                 generateTimeSlots(dayOff.timeRange.startTime, dayOff.timeRange.endTime, 30);
 
@@ -176,7 +176,7 @@ const updateDayOff = async (dayOffId, updateData) => {
         );
 
         if (newStaff.length > 0) {
-            const slots = dayOff.isFullDay ? 
+            const slots = dayOff.isFullDay ?
                 getAllTimeSlots() :
                 generateTimeSlots(dayOff.timeRange.startTime, dayOff.timeRange.endTime, 30);
 
@@ -205,7 +205,7 @@ const deleteDayOff = async (dayOffId) => {
         throw new ApiError(httpStatus.NOT_FOUND, 'Day off not found');
     }
 
-    const slots = dayOff.isFullDay ? 
+    const slots = dayOff.isFullDay ?
         getAllTimeSlots() :
         generateTimeSlots(dayOff.timeRange.startTime, dayOff.timeRange.endTime, 30);
 
@@ -224,7 +224,7 @@ const deleteDayOff = async (dayOffId) => {
     await DayOff.findByIdAndDelete(dayOffId);
 
     // Update global availability for each restored slot
-    await Promise.all(slots.map(slot => 
+    await Promise.all(slots.map(slot =>
         updateGlobalAvailability(dayOff.date, slot)
     ));
 
@@ -294,11 +294,11 @@ const parseAMPM = (timeStr) => {
 
 const createPartialDayOff = async (dateData, isGlobal, affectedStaff = []) => {
     const dayOffDate = new Date(dateData.date);
-    
+
     // Generate time slots including end time
     const timeSlots = generateTimeSlots(
-        dateData.startTime, 
-        dateData.endTime, 
+        dateData.startTime,
+        dateData.endTime,
         30
     );
 
