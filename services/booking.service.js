@@ -72,7 +72,7 @@ const initializeWorkingHours = async (date) => {
         }
 
         // Initialize staff working hours with proper error handling
-        const allStaff = await User.find({ role: 'staff' });
+        const allStaff = await User.find({ role: 'staff', $or: [{ inactive: { $exists: false } }, { inactive: false }] });
         console.log(`Found ${allStaff.length} staff members to initialize working hours for ${date}`);
 
         // Process staff members sequentially to avoid concurrent updates
@@ -190,6 +190,7 @@ const getAvailableSlots = async (date) => {
         const staffName = wh.staff?.name || `Staff ${wh.staff?._id || 'Unknown'}`;
         console.log(`\nStaff Member: ${staffName}`);
         console.log(`- Day Off: ${wh.dayOff ? 'Yes' : 'No'}`);
+        console.log(`- Inactive: ${wh.staff?.inactive ? 'Yes' : 'No'}`);
         
         if (!wh.dayOff) {
             console.log(`- Available Slots (${wh.availableSlots.length}):`);
@@ -257,18 +258,23 @@ const getAvailableStaff = async (date, validationSlots) => {
         return [];
     }
 
-    const allStaff = await User.find({ role: 'staff' })
+    // Only get staff who are not inactive (inactive: true is excluded)
+    const allStaff = await User.find({ role: 'staff', $or: [{ inactive: { $exists: false } }, { inactive: false }] })
         .populate({
             path: 'workingHours',
             match: { date: bookingDate }
         })
         .populate('assignedBookings');
 
-    console.log(`Evaluating ${allStaff.length} staff members:`);
+    console.log(`Evaluating ${allStaff.length} staff members (active only):`);
 
     const availableStaff = allStaff.filter(staff => {
-        console.log(`\n--- Staff ${staff._id} ---`);
-        
+        // Defensive: check staff.inactive again in case DB is out of sync
+        if (staff.inactive) {
+            console.log(`❌ Staff ${staff._id} is inactive`);
+            return false;
+        }
+        console.log(`✅ Staff ${staff._id} is active`);
         const wh = staff.workingHours.find(w => 
             w.date.getTime() === bookingDate.getTime()
         );
@@ -1172,7 +1178,8 @@ const rotateStaffAssignment = async () => {
 
 const updateGlobalAvailability = async (date, timeSlot) => {
     const bookingDate = new Date(date);
-    const allStaff = await User.find({ role: 'staff' });
+    // Only consider active staff for global slot availability
+    const allStaff = await User.find({ role: 'staff', inactive: { $ne: true } });
     
     const staffAvailability = await WorkingHours.find({
         date: bookingDate,

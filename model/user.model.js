@@ -38,6 +38,10 @@ const userSchema = mongoose.Schema({
         enum: ['admin', 'staff'], 
         default: 'staff' 
     },
+    inactive: {
+        type: Boolean,
+        default: false
+    },
     workingHours: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'WorkingHours'
