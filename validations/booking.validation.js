@@ -2,22 +2,27 @@ const joi = require('joi');
 
 const createBookingSchema = {
     body: joi.object().keys({
-        // Client Details
-        'clientDetails.firstName': joi.string().required(),
-        'clientDetails.lastName': joi.string().required(),
-        'clientDetails.phone': joi.string().required(),
-        'clientDetails.email': joi.string().email().allow('', null),
+        clientDetails: joi.object().keys({
+            firstName: joi.string().required(),
+            lastName: joi.string().required(),
+            phone: joi.string().required(),
+            email: joi.string().email().allow('', null),
+        }).required(),
 
-        // Vehicle Details
-        'vehicleDetails.carType': joi.string().valid('SUV', 'AUTO').required(),
-        'vehicleDetails.make': joi.string().allow('', null),
-        'vehicleDetails.model': joi.string().allow('', null),
-        'vehicleDetails.year': joi.string().allow('', null),
+        vehicleDetails: joi.object().keys({
+            carType: joi.string().valid('SUV', 'AUTO').required(),
+            make: joi.string().allow('', null),
+            model: joi.string().allow('', null),
+            year: joi.alternatives().try(joi.string(), joi.number()).allow('', null),
+        }).required(),
 
-        // Location
-        'location.address': joi.string().allow('', null),
-        'location.coordinates.latitude': joi.string().allow('', null),
-        'location.coordinates.longitude': joi.string().allow('', null),
+        location: joi.object().keys({
+            address: joi.string().allow('', null),
+            coordinates: joi.object().keys({
+                latitude: joi.alternatives().try(joi.string(), joi.number()).allow('', null),
+                longitude: joi.alternatives().try(joi.string(), joi.number()).allow('', null),
+            }).optional(),
+        }).optional(),
 
         service_ids: joi.alternatives().try(
             joi.string(),
@@ -40,7 +45,7 @@ const createBookingSchema = {
             joi.string(),
             joi.array().items(joi.any())
         ).optional(),
-    }).unknown(true),
+    }).options({ stripUnknown: true }),
 };
 
 const updateBookingSchema = {

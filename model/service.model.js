@@ -30,6 +30,7 @@ const serviceSchema = new mongoose.Schema({
         am: [{ type: String }], // Features in Amharic
     },
     available: { type: Boolean, default: true },
+    blocksSlots: { type: Boolean, default: true },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
 });

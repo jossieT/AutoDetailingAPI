@@ -33,7 +33,8 @@ const createServiceSchema = {
             am: joi.array().items(joi.string()),
         }).optional(),
         available: joi.boolean(),
-    }),
+        blocksSlots: joi.boolean().optional(),
+    }).options({ stripUnknown: true }),
 };
 
 const updateServiceSchema = {

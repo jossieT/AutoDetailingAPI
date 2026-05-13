@@ -5,13 +5,13 @@ const httpStatus = require('http-status');
 
 // Controller to get available slots for a given date
 const getAvailableSlots = catchAsync(async (req, res) => {
-    const { date } = req.query;
+    const { date, isException } = req.query;
 
     if (!date) {
         return res.status(400).json({ error: 'Date is required' });
     }
 
-    const slots = await bookingService.getAvailableSlots(date);
+    const slots = await bookingService.getAvailableSlots(date, isException === 'true');
 
     res.status(200).json({ availableSlots: slots });
 });
@@ -33,39 +33,40 @@ const createBooking = catchAsync(async (req, res) => {
     }
 
     // Transform form-data to match the model structure
-    const bookingData = {
-        clientDetails: {
-            firstName: req.body['clientDetails.firstName'],
-            lastName: req.body['clientDetails.lastName'],
-            phone: req.body['clientDetails.phone'],
-            email: req.body['clientDetails.email'],
+
+const bookingData = {
+    clientDetails: {
+        firstName: req.body.clientDetails?.firstName,
+        lastName: req.body.clientDetails?.lastName,
+        phone: req.body.clientDetails?.phone,
+        email: req.body.clientDetails?.email,
+    },
+    vehicleDetails: {
+        carType: req.body.vehicleDetails?.carType,
+        make: req.body.vehicleDetails?.make,
+        model: req.body.vehicleDetails?.model,
+        year: req.body.vehicleDetails?.year,
+    },
+    location: {
+        address: req.body.location?.address,
+        coordinates: {
+            latitude: req.body.location?.coordinates?.latitude,
+            longitude: req.body.location?.coordinates?.longitude,
         },
-        vehicleDetails: {
-            carType: req.body['vehicleDetails.carType'],
-            make: req.body['vehicleDetails.make'],
-            model: req.body['vehicleDetails.model'],
-            year: req.body['vehicleDetails.year'],
-        },
-        location: {
-            address: req.body['location.address'],
-            coordinates: {
-                latitude: req.body['location.coordinates.latitude'],
-                longitude: req.body['location.coordinates.longitude'],
-            },
-        },
-        service_ids: Array.isArray(req.body.service_ids) 
-            ? req.body.service_ids 
-            : [req.body.service_ids],
-        selectedAddOns: req.body.selectedAddOns 
-            ? (Array.isArray(req.body.selectedAddOns) 
-                ? req.body.selectedAddOns 
-                : [req.body.selectedAddOns])
-            : [],
-        appointmentDate: req.body.appointmentDate,
-        serviceStartingTime: req.body.serviceStartingTime,
-        appointmentNote: req.body.appointmentNote,
-        images: imageUrls
-    };
+    },
+    service_ids: Array.isArray(req.body.service_ids)
+        ? req.body.service_ids
+        : [req.body.service_ids],
+    selectedAddOns: req.body.selectedAddOns
+        ? (Array.isArray(req.body.selectedAddOns)
+            ? req.body.selectedAddOns
+            : [req.body.selectedAddOns])
+        : [],
+    appointmentDate: req.body.appointmentDate,
+    serviceStartingTime: req.body.serviceStartingTime,
+    appointmentNote: req.body.appointmentNote,
+    images: imageUrls
+};
 
     const booking = await bookingService.createBooking(bookingData);
     res.status(201).json({

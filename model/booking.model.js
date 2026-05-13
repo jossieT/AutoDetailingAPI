@@ -6,17 +6,17 @@ const bookingSchema = new mongoose.Schema({
         firstName: { type: String, required: true },
         lastName: { type: String, required: true },
         phone: { type: String, required: true },
-        email: { type: String},
+        email: { type: String },
     },
     vehicleDetails: {
-        carType: { type: String, enum: ['SUV', 'AUTO'], default: 'SUV', required: true, trim: true }, // e.g., "Sedan", "SUV", etc.
-        make: { type: String }, // Optional: Vehicle make
-        model: { type: String }, // Optional: Vehicle model
-        year: { type: Number }, // Optional: Vehicle year
+        carType: { type: String, enum: ['SUV', 'AUTO'], default: 'SUV', required: true, trim: true },
+        make: { type: String },
+        model: { type: String },
+        year: { type: Number },
     },
     images: [{
-        url: { type: String, required: false }, // URL of uploaded car image
-        description: { type: String }          // Optional description
+        url: { type: String, required: false },
+        description: { type: String }
     }],
     location: {
         address: { type: String },
@@ -35,7 +35,7 @@ const bookingSchema = new mongoose.Schema({
     selectedAddOns: [
         {
             type: mongoose.Schema.Types.ObjectId,
-            ref: 'AddOnService', // Reference to selected add-ons
+            ref: 'AddOnService',
         },
     ],
     appointmentDate: { type: Date, required: true },
@@ -48,7 +48,7 @@ const bookingSchema = new mongoose.Schema({
     },
     assignedTo: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'User', // Assuming staff members are part of the `User` model
+        ref: 'User',
     },
     appointmentNote: {
         type: String,
@@ -58,103 +58,102 @@ const bookingSchema = new mongoose.Schema({
     updatedAt: { type: Date, default: Date.now },
 });
 
-// Middleware to calculate the total price before saving
+// Pre-save hook 1: Calculate total price
 bookingSchema.pre('save', async function (next) {
     if (this.service_ids && this.isModified('service_ids')) {
-        // Populate service_ids to fetch service details
         await this.populate('service_ids', 'pricing duration');
 
-        // if (!this.vehicleDetails.carType) {
-        //     throw new Error('Car type is required to calculate total price');
-        // }
-        // Calculate total price
         this.totalPrice = this.service_ids.reduce((total, service) => {
             const servicePrice = service.pricing;
             return total + servicePrice.basePrice;
         }, 0);
-        
     }
-    // Check and calculate total for add-ons
+
     if (this.selectedAddOns && this.isModified('selectedAddOns')) {
-        // Populate selectedAddOns to fetch add-on details
         await this.populate('selectedAddOns', 'additionalPrice');
 
-        // Calculate total price for add-ons
         const addOnPrice = this.selectedAddOns.reduce((total, addOn) => {
             const priceForCar = addOn.additionalPrice;
-            return total + priceForCar.minBasePrice; // or minBasePrice based on requirement
+            return total + priceForCar.minBasePrice;
         }, 0);
-        // Add add-on price to the total price
+
         this.totalPrice += addOnPrice;
     }
+
     next();
 });
 
+// Pre-save hook 2: Calculate bookingEndTime
 bookingSchema.pre('save', async function (next) {
     if (this.serviceStartingTime && (this.service_ids || this.selectedAddOns) && this.isModified('serviceStartingTime')) {
-        // Ensure services and selectedAddOns are populated to access their durations
-        await this.populate('service_ids', 'duration');
-        await this.populate('selectedAddOns', 'duration');
+
+        await this.populate('service_ids', 'duration blocksSlots name');
+        await this.populate('selectedAddOns', 'duration optionName');
 
         if (!this.vehicleDetails || !this.vehicleDetails.carType) {
             throw new Error('Vehicle type (SUV or AUTO) must be specified to calculate booking duration.');
         }
 
+        // Skip duration calculation for exception bookings
+        const isExceptionBooking = this.service_ids.some(s => s.blocksSlots === false);
+        if (isExceptionBooking) {
+            console.log('Exception booking: skipping bookingEndTime calculation in pre-save hook');
+            return next();
+        }
+
         const vehicleType = this.vehicleDetails.carType;
+        const bookingStart = parseAMPM(this.serviceStartingTime);
 
-        // Parse the serviceStartingTime to Date object
-        let bookingStart = parseAMPM(this.serviceStartingTime);
-
-        // Calculate total duration by summing up durations of selected services
-        const serviceDuration  = this.service_ids.reduce((total, service) => {
+        const serviceDuration = this.service_ids.reduce((total, service) => {
             if (!service.duration || !service.duration[vehicleType]) {
                 throw new Error(`Service ${service.name} does not have a duration defined for ${vehicleType}.`);
             }
             return total + service.duration[vehicleType];
         }, 0);
 
-         // Calculate total duration for add-ons (if any)
-         const addOnDuration = this.selectedAddOns
-         ? this.selectedAddOns.reduce((total, addOn) => {
-               if (!addOn.duration) {
-                   throw new Error(`Add-on ${addOn.optionName} does not have a duration defined.`);
-               }
-               return total + addOn.duration;
-           }, 0)
-         : 0;
+        const addOnDuration = this.selectedAddOns
+            ? this.selectedAddOns.reduce((total, addOn) => {
+                if (!addOn.duration) {
+                    throw new Error(`Add-on ${addOn.optionName} does not have a duration defined.`);
+                }
+                return total + addOn.duration;
+            }, 0)
+            : 0;
 
-
-            // Combine service and add-on durations
-        const totalDuration = serviceDuration + addOnDuration + 60; // Add 60 minutes buffer
-        
-        // Calculate booking end time
+        const totalDuration = serviceDuration + addOnDuration + 60; // 60 min buffer
         const bookingEnd = new Date(bookingStart.getTime() + totalDuration * 60 * 1000);
-
-        // Store bookingEndTime in AM/PM format
         this.bookingEndTime = formatAMPM(bookingEnd);
     }
 
     next();
 });
-// Update the updatedAt field automatically before saving
+
+// Pre-save hook 3: Update updatedAt
 bookingSchema.pre('save', function (next) {
     this.updatedAt = Date.now();
     next();
 });
 
+// Pre-save hook 4: Auto-assign staff if not assigned
 bookingSchema.pre('save', async function (next) {
-    if (!this.assignedTo) { 
-        // Try to find any available staff first
-        const availableStaff = await mongoose.model('User').findOne({ 
+    // Skip auto-assignment for exception bookings
+    await this.populate('service_ids', 'blocksSlots');
+    const isExceptionBooking = this.service_ids.some(s => s.blocksSlots === false);
+    if (isExceptionBooking) {
+        console.log('Exception booking: skipping auto staff assignment');
+        return next();
+    }
+
+    if (!this.assignedTo) {
+        const availableStaff = await mongoose.model('User').findOne({
             role: 'staff',
             'workingHours.date': this.appointmentDate,
             'workingHours.dayOff': false
         });
-        
+
         if (availableStaff) {
             this.assignedTo = availableStaff._id;
         } else {
-            // Fallback to admin if no staff found
             const admin = await mongoose.model('User').findOne({ role: 'admin' });
             if (admin) {
                 this.assignedTo = admin._id;
