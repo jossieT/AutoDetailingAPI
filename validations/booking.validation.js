@@ -1,28 +1,73 @@
 const joi = require('joi');
 
+// --- Nested-object schema (JSON body only, does NOT work with multipart/form-data) ---
+// const createBookingSchema = {
+//     body: joi.object().keys({
+//         clientDetails: joi.object().keys({
+//             firstName: joi.string().required(),
+//             lastName: joi.string().required(),
+//             phone: joi.string().required(),
+//             email: joi.string().email().allow('', null),
+//         }).required(),
+//
+//         vehicleDetails: joi.object().keys({
+//             carType: joi.string().valid('SUV', 'AUTO').required(),
+//             make: joi.string().allow('', null),
+//             model: joi.string().allow('', null),
+//             year: joi.alternatives().try(joi.string(), joi.number()).allow('', null),
+//         }).required(),
+//
+//         location: joi.object().keys({
+//             address: joi.string().allow('', null),
+//             coordinates: joi.object().keys({
+//                 latitude: joi.alternatives().try(joi.string(), joi.number()).allow('', null),
+//                 longitude: joi.alternatives().try(joi.string(), joi.number()).allow('', null),
+//             }).optional(),
+//         }).optional(),
+//
+//         service_ids: joi.alternatives().try(
+//             joi.string(),
+//             joi.array().items(joi.string())
+//         ).required(),
+//
+//         selectedAddOns: joi.alternatives().try(
+//             joi.string(),
+//             joi.array().items(joi.string())
+//         ).optional(),
+//
+//         appointmentDate: joi.string().required(),
+//         serviceStartingTime: joi.string()
+//             .pattern(/^(1[0-2]|0?[1-9]):([0-5][0-9]) (AM|PM)$/)
+//             .message('Service starting time must be in format "HH:MM AM/PM"')
+//             .required(),
+//
+//         appointmentNote: joi.string().allow('', null),
+//         images: joi.alternatives().try(
+//             joi.string(),
+//             joi.array().items(joi.any())
+//         ).optional(),
+//     }).options({ stripUnknown: true }),
+// };
+
+// --- Flat dot-notation schema (works with multer multipart/form-data) ---
 const createBookingSchema = {
     body: joi.object().keys({
-        clientDetails: joi.object().keys({
-            firstName: joi.string().required(),
-            lastName: joi.string().required(),
-            phone: joi.string().required(),
-            email: joi.string().email().allow('', null),
-        }).required(),
+        // Client Details
+        'clientDetails.firstName': joi.string().required(),
+        'clientDetails.lastName': joi.string().required(),
+        'clientDetails.phone': joi.string().required(),
+        'clientDetails.email': joi.string().email().allow('', null),
 
-        vehicleDetails: joi.object().keys({
-            carType: joi.string().valid('SUV', 'AUTO').required(),
-            make: joi.string().allow('', null),
-            model: joi.string().allow('', null),
-            year: joi.alternatives().try(joi.string(), joi.number()).allow('', null),
-        }).required(),
+        // Vehicle Details
+        'vehicleDetails.carType': joi.string().valid('SUV', 'AUTO').required(),
+        'vehicleDetails.make': joi.string().allow('', null),
+        'vehicleDetails.model': joi.string().allow('', null),
+        'vehicleDetails.year': joi.string().allow('', null),
 
-        location: joi.object().keys({
-            address: joi.string().allow('', null),
-            coordinates: joi.object().keys({
-                latitude: joi.alternatives().try(joi.string(), joi.number()).allow('', null),
-                longitude: joi.alternatives().try(joi.string(), joi.number()).allow('', null),
-            }).optional(),
-        }).optional(),
+        // Location
+        'location.address': joi.string().allow('', null),
+        'location.coordinates.latitude': joi.string().allow('', null),
+        'location.coordinates.longitude': joi.string().allow('', null),
 
         service_ids: joi.alternatives().try(
             joi.string(),
@@ -45,7 +90,7 @@ const createBookingSchema = {
             joi.string(),
             joi.array().items(joi.any())
         ).optional(),
-    }).options({ stripUnknown: true }),
+    }).unknown(true),
 };
 
 const updateBookingSchema = {

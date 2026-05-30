@@ -495,8 +495,8 @@ router.get('/api/all-working-hours', bookingController.getWorkingHoursBreakdown)
 // Create a new booking
 router.post('/api/bookings',
     //parseNestedBody,
-    validate(bookingValidation.createBookingSchema),
     uploadBookingImages.array('images', 5),
+    validate(bookingValidation.createBookingSchema),
     bookingController.createBooking
 );
 
