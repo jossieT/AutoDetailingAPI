@@ -36,22 +36,22 @@ const createBooking = catchAsync(async (req, res) => {
 
 const bookingData = {
     clientDetails: {
-        firstName: req.body.clientDetails?.firstName,
-        lastName: req.body.clientDetails?.lastName,
-        phone: req.body.clientDetails?.phone,
-        email: req.body.clientDetails?.email,
+        firstName: req.body['clientDetails.firstName'],
+        lastName: req.body['clientDetails.lastName'],
+        phone: req.body['clientDetails.phone'],
+        email: req.body['clientDetails.email'],
     },
     vehicleDetails: {
-        carType: req.body.vehicleDetails?.carType,
-        make: req.body.vehicleDetails?.make,
-        model: req.body.vehicleDetails?.model,
-        year: req.body.vehicleDetails?.year,
+        carType: req.body['vehicleDetails.carType'],
+        make: req.body['vehicleDetails.make'],
+        model: req.body['vehicleDetails.model'],
+        year: req.body['vehicleDetails.year'],
     },
     location: {
-        address: req.body.location?.address,
+        address: req.body['location.address'],
         coordinates: {
-            latitude: req.body.location?.coordinates?.latitude,
-            longitude: req.body.location?.coordinates?.longitude,
+            latitude: req.body['location.coordinates.latitude'],
+            longitude: req.body['location.coordinates.longitude'],
         },
     },
     service_ids: Array.isArray(req.body.service_ids)
