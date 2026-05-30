@@ -482,19 +482,19 @@ router.get('/api/available-slots', bookingController.getAvailableSlots);
 router.get('/api/all-working-hours', bookingController.getWorkingHoursBreakdown);
 
 
-const parseNestedBody = (req, res, next) => {
-    ['clientDetails', 'vehicleDetails', 'location'].forEach(field => {
-        if (req.body[field] && typeof req.body[field] === 'string') {
-            try {
-                req.body[field] = JSON.parse(req.body[field]);
-            } catch (e) {}
-        }
-    });
-    next();
-};
+// const parseNestedBody = (req, res, next) => {
+//     ['clientDetails', 'vehicleDetails', 'location'].forEach(field => {
+//         if (req.body[field] && typeof req.body[field] === 'string') {
+//             try {
+//                 req.body[field] = JSON.parse(req.body[field]);
+//             } catch (e) {}
+//         }
+//     });
+//     next();
+// };
 // Create a new booking
 router.post('/api/bookings',
-    parseNestedBody,
+    //parseNestedBody,
     validate(bookingValidation.createBookingSchema),
     uploadBookingImages.array('images', 5),
     bookingController.createBooking
