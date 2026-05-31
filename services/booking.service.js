@@ -137,11 +137,6 @@ const initializeWorkingHours = async (date) => {
 const getAvailableSlots = async (date, isException = false) => {
     const bookingDate = new Date(date);
 
-    if (isException) {
-        console.log(`Exception Booking: Returning all standard slots for ${date}`);
-        return generateTimeSlots('06:00', '19:00', 30);
-    }
-    
     // Check if working hours already exist before initializing
     const existingGlobalHours = await WorkingHours.findOne({
         date: bookingDate,
@@ -159,16 +154,82 @@ const getAvailableSlots = async (date, isException = false) => {
         await initializeWorkingHours(date);
     }
 
-    const [staffWorkingHours, globalWorkingHours] = await Promise.all([
-        WorkingHours.find({
-            date: bookingDate,
-            staff: { $exists: true, $ne: null }
-        }).populate('staff'),
-        WorkingHours.findOne({ 
-            date: bookingDate,
-            staff: { $exists: false }
-        })
-    ]);
+    const globalWorkingHours = await WorkingHours.findOne({ 
+        date: bookingDate,
+        staff: { $exists: false }
+    });
+
+    const filterSlots = (slots) => {
+        const timeToMinutes = (time) => {
+            if (!time) return 0;
+            const parts = time.split(':');
+            if (parts.length < 2) return 0;
+            const hours = parseInt(parts[0]);
+            const minutesPeriod = parts[1].split(' ');
+            if (minutesPeriod.length < 2) return 0;
+            const minutes = parseInt(minutesPeriod[0]);
+            const period = minutesPeriod[1];
+            const hoursIn24 = period === 'PM' && hours !== 12
+                ? hours + 12
+                : period === 'AM' && hours === 12
+                    ? 0
+                    : hours;
+            return hoursIn24 * 60 + minutes;
+        };
+
+        const startBoundary = timeToMinutes('06:00 AM');
+        const endBoundary = timeToMinutes('04:30 PM');
+
+        const filtered = slots.filter((slot) => {
+            const slotInMinutes = timeToMinutes(slot);
+            return slotInMinutes >= startBoundary && slotInMinutes <= endBoundary;
+        });
+
+        // Sort slots in ascending order
+        return filtered.sort((a, b) => timeToMinutes(a) - timeToMinutes(b));
+    };
+
+    if (isException) {
+        console.log(`Exception Booking: Processing slots for ${date}`);
+        if (globalWorkingHours && globalWorkingHours.dayOff) {
+            console.log(`Exception Booking: Global dayOff detected for ${date}`);
+            return [];
+        }
+
+        // Return all configured business hours (06:00 AM to 04:30 PM) unfiltered by availability
+        let exceptionSlots = generateTimeSlots('06:00', '19:00', 30);
+        exceptionSlots = filterSlots(exceptionSlots);
+        
+        // Remove partialDayOff slots if any
+        if (globalWorkingHours && globalWorkingHours.partialDayOff && globalWorkingHours.partialDayOff.length > 0) {
+            const timeToMinutes = (time) => {
+                if (!time) return 0;
+                const parts = time.split(':');
+                if (parts.length < 2) return 0;
+                const hours = parseInt(parts[0]);
+                const minutesPeriod = parts[1].split(' ');
+                const minutes = parseInt(minutesPeriod[0]);
+                const period = minutesPeriod[1];
+                const hoursIn24 = period === 'PM' && hours !== 12 ? hours + 12 : period === 'AM' && hours === 12 ? 0 : hours;
+                return hoursIn24 * 60 + minutes;
+            };
+            
+            const isSlotInPartialDayOff = (slot, partialDayOffs) => {
+                const slotMin = timeToMinutes(slot);
+                return partialDayOffs.some(pdo => {
+                    return slotMin >= timeToMinutes(pdo.startTime) && slotMin < timeToMinutes(pdo.endTime);
+                });
+            };
+            exceptionSlots = exceptionSlots.filter(slot => !isSlotInPartialDayOff(slot, globalWorkingHours.partialDayOff));
+        }
+
+        return exceptionSlots;
+    }
+
+    const staffWorkingHours = await WorkingHours.find({
+        date: bookingDate,
+        staff: { $exists: true, $ne: null }
+    }).populate('staff');
 
     // Log detailed staff availability
     console.log(`\n=== Staff Availability for ${date} ===`);
@@ -197,30 +258,6 @@ const getAvailableSlots = async (date, isException = false) => {
 
     // Get unique slots that appear in at least one staff's availability
     const uniqueSlots = [...new Set(allAvailableSlots)];
-
-    const filterSlots = (slots) => {
-        const timeToMinutes = (time) => {
-            const [hours, minutesPeriod] = time.split(':');
-            const [minutes, period] = minutesPeriod.split(' ');
-            const hoursIn24 = period === 'PM' && parseInt(hours) !== 12
-                ? parseInt(hours) + 12
-                : period === 'AM' && parseInt(hours) === 12
-                    ? 0
-                    : parseInt(hours);
-            return hoursIn24 * 60 + parseInt(minutes);
-        };
-
-        const startBoundary = timeToMinutes('06:00 AM');
-        const endBoundary = timeToMinutes('04:30 PM');
-
-        const filtered = slots.filter((slot) => {
-            const slotInMinutes = timeToMinutes(slot);
-            return slotInMinutes >= startBoundary && slotInMinutes <= endBoundary;
-        });
-
-        // Sort slots in ascending order
-        return filtered.sort((a, b) => timeToMinutes(a) - timeToMinutes(b));
-    };
 
     return filterSlots(uniqueSlots);
 };
@@ -868,11 +905,13 @@ const getBookingById = async (bookingId) => {
 // Update a booking by ID
 const updateBookingById = async (bookingId, updateData) => {
     // First check if the booking exists
-    const booking = await Booking.findById(bookingId);
+    const booking = await Booking.findById(bookingId).populate('service_ids');
     if (!booking) {
         throw new ApiError(httpStatus.NOT_FOUND, 'Booking not found');
     }
     
+    const isExceptionBooking = booking.service_ids.some(s => s.blocksSlots === false);
+
     // If updating appointment date or time, validate availability
     if (updateData.appointmentDate || updateData.serviceStartingTime) {
         const date = updateData.appointmentDate || booking.appointmentDate;
@@ -888,7 +927,8 @@ const updateBookingById = async (bookingId, updateData) => {
         }
 
         // Only check availability if the time is different from the current booking
-        if (time !== booking.serviceStartingTime) {
+        // Exception bookings completely bypass this availability check
+        if (time !== booking.serviceStartingTime && !isExceptionBooking) {
             if (!workingHours.availableSlots.includes(time)) {
                 throw new ApiError(httpStatus.BAD_REQUEST, 'Selected time slot is not available');
             }
