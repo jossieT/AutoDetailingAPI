@@ -11,12 +11,7 @@ const getAvailableSlots = catchAsync(async (req, res) => {
         return res.status(400).json({ error: 'Date is required' });
     }
 
-    const isExceptionBooking = isException === 'true';
-    const slots = await bookingService.getAvailableSlots(date, isExceptionBooking);
-
-    if (isExceptionBooking) {
-        return res.status(200).json({ availableSlots: slots, totalDuration: 0 });
-    }
+    const slots = await bookingService.getAvailableSlots(date, isException === 'true');
 
     res.status(200).json({ availableSlots: slots });
 });
