@@ -1265,7 +1265,7 @@ const updateGlobalAvailability = async (date, timeSlot) => {
     }
 };
 
-const getWorkingHoursBreakdown = async (date) => {
+const getWorkingHoursBreakdown = async (date, isException = false) => {
     const bookingDate = new Date(date);
     
     // Ensure working hours are initialized first
@@ -1283,7 +1283,7 @@ const getWorkingHoursBreakdown = async (date) => {
     ]);
 
     // Reuse existing availability calculation logic
-    const globalAvailableSlots = await getAvailableSlots(date);
+    const globalAvailableSlots = await getAvailableSlots(date, isException);
 
     return {
         global: {

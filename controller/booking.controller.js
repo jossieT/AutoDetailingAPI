@@ -3,15 +3,31 @@ const catchAsync = require('../utils/catchAsync');
 const httpStatus = require('http-status');
 //const cloudinary = require('../config/cloudinary');
 
+const Service = require('../model/service.model');
+
 // Controller to get available slots for a given date
 const getAvailableSlots = catchAsync(async (req, res) => {
-    const { date, isException } = req.query;
+    const { date, isException, service_ids, serviceId } = req.query;
 
     if (!date) {
         return res.status(400).json({ error: 'Date is required' });
     }
 
-    const slots = await bookingService.getAvailableSlots(date, isException === 'true');
+    let isExceptionBooking = isException === 'true';
+
+    // If frontend sends the service ID, look up the truth dynamically
+    const ids = service_ids || serviceId;
+    if (ids) {
+        const idArray = Array.isArray(ids) ? ids : ids.split(',');
+        const services = await Service.find({ _id: { $in: idArray } }, 'blocksSlots');
+        isExceptionBooking = services.some(s => s.blocksSlots === false);
+    }
+
+    const slots = await bookingService.getAvailableSlots(date, isExceptionBooking);
+
+    if (isExceptionBooking) {
+        return res.status(200).json({ availableSlots: slots, totalDuration: 0 });
+    }
 
     res.status(200).json({ availableSlots: slots });
 });
@@ -231,8 +247,20 @@ const getDeletedBookings = catchAsync(async (req, res) => {
 });
 
 const getWorkingHoursBreakdown = catchAsync(async (req, res) => {
-    const { date } = req.query;
-    const breakdown = await bookingService.getWorkingHoursBreakdown(date);
+    const { date, service_ids, serviceId, isException } = req.query;
+    
+    let isExceptionBooking = isException === 'true';
+
+    // If frontend sends the service ID, look up the truth dynamically
+    const ids = service_ids || serviceId;
+    if (ids) {
+        const idArray = Array.isArray(ids) ? ids : ids.split(',');
+        const Service = require('../model/service.model');
+        const services = await Service.find({ _id: { $in: idArray } }, 'blocksSlots');
+        isExceptionBooking = services.some(s => s.blocksSlots === false);
+    }
+
+    const breakdown = await bookingService.getWorkingHoursBreakdown(date, isExceptionBooking);
     res.send(breakdown);
 });
 
